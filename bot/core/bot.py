@@ -77,9 +77,29 @@ class MarzNodeBot:
         @self.bot.message_handler(func=lambda message: True, content_types=['text', 'document'])
         def handle_text(message):
             user_id = message.from_user.id
-            if user_id in self.active_sessions:
-                session = self.active_sessions[user_id]
-                session['handler'](message, session)
+            
+            # Make sure active_sessions exists
+            if not hasattr(self.bot, 'active_sessions'):
+                self.bot.active_sessions = {}
+            
+            if user_id in self.bot.active_sessions:
+                session = self.bot.active_sessions[user_id]
+                try:
+                    session['handler'](message, session)
+                except Exception as e:
+                    logger.error(f"Error in session handler: {e}")
+                    # Clear broken session
+                    if user_id in self.bot.active_sessions:
+                        del self.bot.active_sessions[user_id]
+                    
+                    # Get user language and send error
+                    user = self.db.get_user(user_id)
+                    lang = user['language'] if user else 'fa'
+                    from bot.texts.bot_texts import get_text
+                    self.bot.send_message(
+                        message.chat.id,
+                        get_text('error_occurred', lang, error=str(e))
+                    )
     
     def start(self):
         """Start the bot"""
