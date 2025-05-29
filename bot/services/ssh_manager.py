@@ -24,7 +24,7 @@ class SSHManager:
                      ssh_password: str = None, ssh_key: str = None,
                      panel_id: int = None, node_name: str = None,
                      node_port: int = None, api_port: int = None,
-                     db=None, progress_callback=None) -> Tuple[bool, str]:
+                     db=None) -> Tuple[bool, str]:
         """Install Marzban node on remote server"""
         
         ssh_client = None
@@ -110,16 +110,9 @@ class SSHManager:
             
             logger.info(f"SSH connection established to {ssh_ip}")
             
-            # Execute installation commands with progress tracking
-            total_steps = len(INSTALL_COMMANDS) + 5  # Additional steps for config, certs, etc.
+            # Execute installation commands
             for i, command in enumerate(INSTALL_COMMANDS, 1):
                 logger.info(f"Executing step {i}/{len(INSTALL_COMMANDS)}: {command}")
-                
-                # Update progress
-                if progress_callback:
-                    progress = int((i / total_steps) * 100)
-                    progress_callback(progress)
-                
                 success, output = self._execute_command(ssh_client, command)
                 if not success:
                     logger.error(f"Command failed: {command}\nOutput: {output}")
@@ -237,20 +230,15 @@ EOF'''
             else:
                 logger.warning("Could not retrieve container logs")
             
-            # Add node to panel with FIXED ports
-            from bot.config.settings import FIXED_NODE_PORT, FIXED_API_PORT
+            # Add node to panel
             node_data = {
                 'add_as_new_host': True,
                 'address': ssh_ip,
-                'api_port': FIXED_API_PORT,  # Always use fixed API port
+                'api_port': api_port or DEFAULT_API_PORT,
                 'name': node_name or f"node-{ssh_ip}",
-                'port': FIXED_NODE_PORT,     # Always use fixed node port
+                'port': node_port or DEFAULT_NODE_PORT,
                 'usage_coefficient': 1
             }
-            
-            # Update progress
-            if progress_callback:
-                progress_callback(85)
             
             success, node_result = self.marzban_api.add_node(
                 panel['url'],
