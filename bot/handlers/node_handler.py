@@ -763,30 +763,6 @@ class NodeHandler:
                 show_alert=True
             )
 
-        # Authentication method callbacks  
-        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('install_auth_'))
-        def install_auth_callback(call):
-            user_id = call.from_user.id
-            if user_id in self.bot.active_sessions:
-                session = self.bot.active_sessions[user_id]
-                user = self.db.get_user(user_id)
-                lang = user['language'] if user else 'en'
-
-                if call.data == 'install_auth_password':
-                    session['step'] = 'ssh_password'
-                    self.bot.edit_message_text(
-                        get_text('enter_ssh_password', lang),
-                        call.message.chat.id,
-                        call.message.message_id
-                    )
-                elif call.data == 'install_auth_key':
-                    session['step'] = 'ssh_key'
-                    self.bot.edit_message_text(
-                        get_text('enter_ssh_key', lang),
-                        call.message.chat.id,
-                        call.message.message_id
-                    )
-
         def _start_bulk_install(self, call, panel_id, lang):
         """Start bulk node installation process"""
         user_id = call.from_user.id
@@ -1228,53 +1204,3 @@ class NodeHandler:
         target_conn.commit()
         source_conn.close()
         target_conn.close()
-
-        # Authentication method callbacks for bulk install
-        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('bulk_auth_'))
-        def bulk_auth_callback(call):
-            user_id = call.from_user.id
-            if user_id in self.bot.active_sessions:
-                session = self.bot.active_sessions[user_id]
-                user = self.db.get_user(user_id)
-                lang = user['language'] if user else 'en'
-
-                if call.data == 'bulk_auth_password':
-                    session['auth_type'] = 'password'
-                    session['step'] = 'bulk_auth_data'
-                    self.bot.edit_message_text(
-                        get_text('enter_bulk_password', lang),
-                        call.message.chat.id,
-                        call.message.message_id
-                    )
-                elif call.data == 'bulk_auth_key':
-                    session['auth_type'] = 'ssh_key'
-                    session['step'] = 'bulk_auth_data'
-                    self.bot.edit_message_text(
-                        get_text('enter_bulk_ssh_key', lang),
-                        call.message.chat.id,
-                        call.message.message_id
-                    )
-
-        # Authentication method callbacks for single install
-        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('install_auth_'))
-        def install_auth_callback(call):
-            user_id = call.from_user.id
-            if user_id in self.bot.active_sessions:
-                session = self.bot.active_sessions[user_id]
-                user = self.db.get_user(user_id)
-                lang = user['language'] if user else 'en'
-
-                if call.data == 'install_auth_password':
-                    session['step'] = 'ssh_password'
-                    self.bot.edit_message_text(
-                        get_text('enter_ssh_password', lang),
-                        call.message.chat.id,
-                        call.message.message_id
-                    )
-                elif call.data == 'install_auth_key':
-                    session['step'] = 'ssh_key'
-                    self.bot.edit_message_text(
-                        get_text('enter_ssh_key', lang),
-                        call.message.chat.id,
-                        call.message.message_id
-                )
