@@ -379,16 +379,59 @@ class NodeHandler:
                 self._continue_to_port_config(message, session, lang)
 
             elif session['step'] == 'ssh_key':
-                if message.document:
-                    # Handle file upload
-                    file_info = self.bot.get_file(message.document.file_id)
-                    file_content = self.bot.download_file(file_info.file_path)
-                    session['data']['ssh_key'] = file_content.decode('utf-8')
-                else:
-                    # Handle text input
-                    session['data']['ssh_key'] = message.text.strip()
-
-                self._continue_to_port_config(message, session, lang)
+                try:
+                    if message.document:
+                        # Handle file upload
+                        file_info = self.bot.get_file(message.document.file_id)
+                        file_content = self.bot.download_file(file_info.file_path)
+                        ssh_key_content = file_content.decode('utf-8').strip()
+                    else:
+                        # Handle text input
+                        ssh_key_content = message.text.strip()
+                    
+                    # Validate SSH key format
+                    if not ssh_key_content.startswith('-----BEGIN'):
+                        self.bot.send_message(
+                            message.chat.id,
+                            get_text('invalid_ssh_key_format', lang)
+                        )
+                        return
+                    
+                    session['data']['ssh_key'] = ssh_key_content
+                    
+                    # Test the SSH key
+                    self.bot.send_message(
+                        message.chat.id,
+                        get_text('testing_ssh_connection', lang)
+                    )
+                    
+                    test_success, test_msg = self.ssh_manager.test_ssh_connection(
+                        session['data']['ssh_ip'],
+                        session['data']['ssh_port'],
+                        session['data']['ssh_username'],
+                        ssh_key=ssh_key_content
+                    )
+                    
+                    if not test_success:
+                        self.bot.send_message(
+                            message.chat.id,
+                            get_text('ssh_test_failed', lang, error=test_msg)
+                        )
+                        return
+                    
+                    self.bot.send_message(
+                        message.chat.id,
+                        get_text('ssh_test_success', lang)
+                    )
+                    
+                    self._continue_to_port_config(message, session, lang)
+                    
+                except Exception as e:
+                    logger.error(f"Error handling SSH key: {e}")
+                    self.bot.send_message(
+                        message.chat.id,
+                        get_text('error_occurred', lang, error=str(e))
+                    )
 
             elif session['step'] == 'node_port':
                 try:
@@ -679,4 +722,4 @@ class NodeHandler:
                         get_text('enter_node_name', lang),
                         call.message.chat.id,
                         call.message.message_id
-                    )
+            )
