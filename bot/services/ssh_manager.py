@@ -110,13 +110,28 @@ class SSHManager:
             
             logger.info(f"SSH connection established to {ssh_ip}")
             
-            # Execute installation commands
+            # Execute installation commands with intelligent error handling
             for i, command in enumerate(INSTALL_COMMANDS, 1):
                 logger.info(f"Executing step {i}/{len(INSTALL_COMMANDS)}: {command}")
                 success, output = self._execute_command(ssh_client, command)
+                
                 if not success:
-                    logger.error(f"Command failed: {command}\nOutput: {output}")
-                    return False, f"Failed at step {i}: {command}\nOutput: {output}"
+                    logger.warning(f"Command failed at step {i}: {command}")
+                    logger.warning(f"Error output: {output}")
+                    
+                    # Try to fix common installation issues
+                    if self._try_fix_installation_issues(ssh_client, output):
+                        logger.info(f"Fixed installation issue, retrying step {i}")
+                        # Retry the failed command
+                        success, output = self._execute_command(ssh_client, command)
+                        
+                        if not success:
+                            logger.error(f"Command still failed after fix attempt: {command}")
+                            return False, f"Failed at step {i}: {command}\nOutput: {output}"
+                    else:
+                        logger.error(f"Could not fix installation issue: {command}")
+                        return False, f"Failed at step {i}: {command}\nOutput: {output}"
+                
                 logger.info(f"Step {i} completed successfully: {command}")
                 if output.strip():
                     logger.info(f"Command output: {output[:500]}...")  # Log first 500 chars
@@ -348,6 +363,105 @@ EOF'''
             logger.error(f"Error executing command '{command}': {e}")
             return False, str(e)
     
+    def _try_fix_installation_issues(self, ssh_client: paramiko.SSHClient, error_output: str) -> bool:
+        """Try to fix common installation issues automatically"""
+        try:
+            logger.info("Attempting to fix installation issues...")
+            
+            # Fix dpkg interruption issues
+            if "dpkg was interrupted" in error_output or "dpkg --configure -a" in error_output:
+                logger.info("Detected dpkg interruption, fixing...")
+                
+                # Kill any running dpkg processes
+                self._execute_command(ssh_client, "pkill -f dpkg || true")
+                time.sleep(2)
+                
+                # Remove lock files
+                fix_commands = [
+                    "rm -f /var/lib/dpkg/lock-frontend",
+                    "rm -f /var/lib/dpkg/lock",
+                    "rm -f /var/cache/apt/archives/lock",
+                    "dpkg --configure -a",
+                    "apt-get -f install"
+                ]
+                
+                for cmd in fix_commands:
+                    success, output = self._execute_command(ssh_client, cmd)
+                    if success:
+                        logger.info(f"Fix command successful: {cmd}")
+                    else:
+                        logger.warning(f"Fix command failed: {cmd} - {output}")
+                
+                return True
+            
+            # Fix apt lock issues
+            elif "Could not get lock" in error_output or "Unable to lock" in error_output:
+                logger.info("Detected apt lock issues, fixing...")
+                
+                # Wait for other package managers and remove locks
+                fix_commands = [
+                    "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo 'Waiting...'; sleep 5; done",
+                    "rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock",
+                    "apt-get clean",
+                    "apt-get update"
+                ]
+                
+                for cmd in fix_commands:
+                    success, output = self._execute_command(ssh_client, cmd)
+                    if success:
+                        logger.info(f"Lock fix successful: {cmd}")
+                    else:
+                        logger.warning(f"Lock fix failed: {cmd} - {output}")
+                
+                return True
+            
+            # Fix broken packages
+            elif "broken packages" in error_output.lower() or "unmet dependencies" in error_output.lower():
+                logger.info("Detected broken packages, fixing...")
+                
+                fix_commands = [
+                    "apt-get clean",
+                    "apt-get autoclean",
+                    "apt-get -f install",
+                    "dpkg --configure -a",
+                    "apt-get update"
+                ]
+                
+                for cmd in fix_commands:
+                    success, output = self._execute_command(ssh_client, cmd)
+                    if success:
+                        logger.info(f"Package fix successful: {cmd}")
+                    else:
+                        logger.warning(f"Package fix failed: {cmd} - {output}")
+                
+                return True
+            
+            # Fix repository issues
+            elif "repository" in error_output.lower() and ("not found" in error_output.lower() or "fail" in error_output.lower()):
+                logger.info("Detected repository issues, fixing...")
+                
+                fix_commands = [
+                    "apt-get clean",
+                    "rm -rf /var/lib/apt/lists/*",
+                    "apt-get update"
+                ]
+                
+                for cmd in fix_commands:
+                    success, output = self._execute_command(ssh_client, cmd)
+                    if success:
+                        logger.info(f"Repository fix successful: {cmd}")
+                    else:
+                        logger.warning(f"Repository fix failed: {cmd} - {output}")
+                
+                return True
+            
+            logger.info("No specific fix pattern matched")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error while trying to fix installation issues: {e}")
+            return False
+
     def test_ssh_connection(self, ssh_ip: str, ssh_port: int, ssh_username: str,
                           ssh_password: str = None, ssh_key: str = None) -> Tuple[bool, str]:
         """Test SSH connection to server"""
