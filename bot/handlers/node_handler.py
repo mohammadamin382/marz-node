@@ -106,6 +106,12 @@ class NodeHandler:
             panel_id = int(call.data.split('_')[3])
             self._start_bulk_install(call, panel_id, lang)
 
+        elif call.data.startswith('bulk_auth_'):
+            if call.data == 'bulk_auth_password':
+                self._handle_bulk_auth_choice(call, 'password', lang)
+            elif call.data == 'bulk_auth_ssh':
+                self._handle_bulk_auth_choice(call, 'ssh_key', lang)
+
         elif call.data == 'node_back_main':
             from bot.handlers.start_handler import StartHandler
             start_handler = StartHandler(self.bot, self.db)
@@ -653,7 +659,7 @@ class NodeHandler:
         """Start bulk node installation process"""
         user_id = call.from_user.id
         session_data = {
-            'step': 'bulk_server_list',
+            'step': 'bulk_auth_choice',
             'panel_id': panel_id,
             'data': {},
             'handler': self._handle_bulk_install_input
@@ -662,11 +668,49 @@ class NodeHandler:
         self.bot.active_sessions = getattr(self.bot, 'active_sessions', {})
         self.bot.active_sessions[user_id] = session_data
 
-        self.bot.edit_message_text(
-            get_text('enter_server_list', lang),  # You might need to create this text
-            call.message.chat.id,
-            call.message.message_id
+        keyboard = InlineKeyboardMarkup()
+        keyboard.row(
+            InlineKeyboardButton(
+                get_text('bulk_password_auth', lang),
+                callback_data='bulk_auth_password'
+            ),
+            InlineKeyboardButton(
+                get_text('bulk_ssh_key_auth', lang),
+                callback_data='bulk_auth_ssh'
+            )
         )
+
+        self.bot.edit_message_text(
+            get_text('bulk_auth_choice', lang),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=keyboard
+        )
+
+    def _handle_bulk_auth_choice(self, call, auth_type, lang):
+        """Handle bulk authentication method choice"""
+        user_id = call.from_user.id
+        session = self.bot.active_sessions.get(user_id)
+        
+        if not session:
+            return
+            
+        session['data']['auth_type'] = auth_type
+        
+        if auth_type == 'password':
+            session['step'] = 'bulk_server_list_password'
+            self.bot.edit_message_text(
+                get_text('bulk_enter_servers_with_password', lang),
+                call.message.chat.id,
+                call.message.message_id
+            )
+        else:  # ssh_key
+            session['step'] = 'bulk_server_list_ssh'
+            self.bot.edit_message_text(
+                get_text('bulk_enter_servers_for_ssh', lang),
+                call.message.chat.id,
+                call.message.message_id
+            )
 
     def _handle_bulk_install_input(self, message, session):
         """Handle bulk installation input"""
@@ -675,29 +719,20 @@ class NodeHandler:
         user_id = message.from_user.id
 
         try:
-            if session['step'] == 'bulk_server_list':
-                # Parse server list from message
+            if session['step'] == 'bulk_server_list_password':
+                # Parse server list with passwords
                 servers = []
                 lines = message.text.strip().split('\n')
 
                 for line in lines:
                     if line.strip():
-                        parts = line.strip().split(' ', 2)  # Split into max 3 parts
-                        if len(parts) >= 3:  # ip username password/key
-                            auth_data = parts[2]
-                            
-                            # Auto-detect if it's SSH key or password
-                            is_ssh_key = (
-                                '-----BEGIN' in auth_data or
-                                auth_data.startswith('ssh-') or
-                                len(auth_data) > 200  # SSH keys are typically longer
-                            )
-                            
+                        parts = line.strip().split(' ')
+                        if len(parts) >= 3:  # ip username password
                             servers.append({
                                 'ip': parts[0],
                                 'username': parts[1],
-                                'auth_data': auth_data,
-                                'is_ssh_key': is_ssh_key
+                                'password': ' '.join(parts[2:]),  # In case password has spaces
+                                'auth_type': 'password'
                             })
 
                 if not servers:
@@ -713,6 +748,72 @@ class NodeHandler:
 
                 # Start bulk installation directly
                 self._start_bulk_node_installation(message, session, lang, user_id)
+
+            elif session['step'] == 'bulk_server_list_ssh':
+                # Parse server list without passwords (only IP and username)
+                servers = []
+                lines = message.text.strip().split('\n')
+
+                for line in lines:
+                    if line.strip():
+                        parts = line.strip().split(' ')
+                        if len(parts) >= 2:  # ip username
+                            servers.append({
+                                'ip': parts[0],
+                                'username': parts[1],
+                                'auth_type': 'ssh_key'
+                            })
+
+                if not servers:
+                    self.bot.send_message(
+                        message.chat.id,
+                        get_text('invalid_server_format', lang)
+                    )
+                    return
+
+                session['data']['servers'] = servers
+                session['step'] = 'bulk_ssh_key'
+                
+                self.bot.send_message(
+                    message.chat.id,
+                    get_text('bulk_enter_ssh_key', lang)
+                )
+
+            elif session['step'] == 'bulk_ssh_key':
+                try:
+                    if message.document:
+                        # Handle file upload
+                        file_info = self.bot.get_file(message.document.file_id)
+                        file_content = self.bot.download_file(file_info.file_path)
+                        ssh_key_content = file_content.decode('utf-8').strip()
+                    else:
+                        # Handle text input
+                        ssh_key_content = message.text.strip()
+
+                    # Validate SSH key format
+                    if not ssh_key_content.startswith('-----BEGIN'):
+                        self.bot.send_message(
+                            message.chat.id,
+                            get_text('invalid_ssh_key_format', lang)
+                        )
+                        return
+
+                    # Add SSH key to all servers
+                    for server in session['data']['servers']:
+                        server['ssh_key'] = ssh_key_content
+
+                    session['data']['node_port'] = 62050
+                    session['data']['api_port'] = 62051
+
+                    # Start bulk installation
+                    self._start_bulk_node_installation(message, session, lang, user_id)
+
+                except Exception as e:
+                    logger.error(f"Error handling SSH key: {e}")
+                    self.bot.send_message(
+                        message.chat.id,
+                        get_text('error_occurred', lang, error=str(e))
+                    )
 
         except Exception as e:
             logger.error(f"Error handling bulk install input: {e}")
@@ -740,16 +841,16 @@ class NodeHandler:
                 try:
                     node_name = f"node-{server['ip'].replace('.', '-')}"
 
-                    # Use auto-detected authentication method
-                    if server['is_ssh_key']:
+                    # Use specified authentication method
+                    if server['auth_type'] == 'ssh_key':
                         ssh_password = None
-                        ssh_key = server['auth_data']
+                        ssh_key = server['ssh_key']
                         self.bot.send_message(
                             message.chat.id,
                             f"🔑 {server['ip']}: استفاده از کلید SSH"
                         )
                     else:
-                        ssh_password = server['auth_data']
+                        ssh_password = server['password']
                         ssh_key = None
                         self.bot.send_message(
                             message.chat.id,
