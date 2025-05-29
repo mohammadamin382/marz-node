@@ -354,7 +354,10 @@ EOF'''
             
             logger.info(f"Command completed with exit status: {exit_status}")
             
-            if exit_status == 0:
+            # Special handling for certain commands that can have non-zero exit but are still successful
+            if self._is_command_success(command, exit_status, output, error):
+                return True, output or error
+            elif exit_status == 0:
                 return True, output
             else:
                 return False, error or output
@@ -362,6 +365,32 @@ EOF'''
         except Exception as e:
             logger.error(f"Error executing command '{command}': {e}")
             return False, str(e)
+    
+    def _is_command_success(self, command: str, exit_status: int, output: str, error: str) -> bool:
+        """Check if command is considered successful despite non-zero exit status"""
+        # Commands that end with "|| true" should always be considered successful
+        if command.strip().endswith("|| true"):
+            logger.info(f"Command with '|| true' completed with status {exit_status} - treating as success")
+            return True
+        
+        # pkill commands are successful if they don't find processes to kill
+        if "pkill" in command and exit_status == 1:
+            logger.info(f"pkill command found no processes to kill - treating as success")
+            return True
+        
+        # Commands that are expected to sometimes fail gracefully
+        graceful_commands = [
+            "rm -f",  # File removal that might not exist
+            "killall",  # Process killing that might not find processes
+            "fuser",  # File usage check
+        ]
+        
+        for graceful_cmd in graceful_commands:
+            if graceful_cmd in command and exit_status in [1, -1]:
+                logger.info(f"Graceful command '{graceful_cmd}' completed with status {exit_status} - treating as success")
+                return True
+        
+        return False
     
     def _try_fix_installation_issues(self, ssh_client: paramiko.SSHClient, error_output: str) -> bool:
         """Try to fix common installation issues automatically"""
