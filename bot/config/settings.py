@@ -85,14 +85,27 @@ DOCKER_COMPOSE_CONTENT = """services:
       - /var/lib/marzban-node:/var/lib/marzban-node
 """
 
-# Installation commands
+# Installation commands with enhanced error prevention
 INSTALL_COMMANDS = [
-    # Wait for any running apt processes to finish and remove locks
-    "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo 'Waiting for other package managers to finish...'; sleep 5; done",
-    "rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock",
-    # Now run the actual installation
-    "apt-get update && apt-get upgrade -y && apt-get install curl socat git -y",
+    # Comprehensive system preparation
+    "export DEBIAN_FRONTEND=noninteractive",
+    # Kill any hanging processes and clean up
+    "pkill -f dpkg || true; pkill -f apt || true",
+    "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo 'Waiting for package managers...'; sleep 3; done",
+    # Remove all possible lock files
+    "rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock",
+    # Fix any interrupted dpkg operations
+    "dpkg --configure -a",
+    # Clean and update package cache
+    "apt-get clean && apt-get autoclean",
+    "apt-get update",
+    # Install packages with error handling
+    "apt-get upgrade -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold'",
+    "apt-get install curl socat git -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold'",
+    # Install Docker
     "curl -fsSL https://get.docker.com | sh",
+    # Clone Marzban-node
     "git clone https://github.com/Gozargah/Marzban-node",
+    # Create directory
     "mkdir -p /var/lib/marzban-node",
 ]
