@@ -384,7 +384,14 @@ class NodeHandler:
 
             elif session['step'] == 'ssh_password':
                 session['data']['ssh_password'] = message.text.strip()
-                self._continue_to_port_config(message, session, lang)
+                # Set fixed ports and continue to node naming
+                session['data']['node_port'] = 62050
+                session['data']['api_port'] = 62051
+                session['step'] = 'node_name'
+                self.bot.send_message(
+                    message.chat.id,
+                    get_text('enter_node_name', lang)
+                )
 
             elif session['step'] == 'ssh_key':
                 try:
@@ -432,7 +439,14 @@ class NodeHandler:
                         get_text('ssh_test_success', lang)
                     )
 
-                    self._continue_to_fixed_port_config(message, session, lang)
+                    # Set fixed ports and continue to node naming
+                    session['data']['node_port'] = 62050
+                    session['data']['api_port'] = 62051
+                    session['step'] = 'node_name'
+                    self.bot.send_message(
+                        message.chat.id,
+                        get_text('enter_node_name', lang)
+                    )
 
                 except Exception as e:
                     logger.error(f"Error handling SSH key: {e}")
@@ -460,39 +474,7 @@ class NodeHandler:
             if user_id in self.bot.active_sessions:
                 del self.bot.active_sessions[user_id]
 
-    def _continue_to_fixed_port_config(self, message, session, lang):
-        """Continue to fixed port configuration"""
-        session['step'] = 'fixed_port_config'
-        session['data']['node_port'] = 62050
-        session['data']['api_port'] = 62051
-
-        session['step'] = 'node_name'
-        self.bot.send_message(
-            message.chat.id,
-            get_text('enter_node_name', lang)
-        )
-
-    def _continue_to_port_config(self, message, session, lang):
-        """Continue to port configuration"""
-        session['step'] = 'port_config'
-
-        keyboard = InlineKeyboardMarkup()
-        keyboard.row(
-            InlineKeyboardButton(
-                get_text('custom_ports', lang),
-                callback_data='install_ports_custom'
-            ),
-            InlineKeyboardButton(
-                get_text('random_ports', lang),
-                callback_data='install_ports_random'
-            )
-        )
-
-        self.bot.send_message(
-            message.chat.id,
-            get_text('port_config', lang),
-            reply_markup=keyboard
-        )
+    
 
     def _generate_random_name(self):
         """Generate random node name"""
@@ -823,80 +805,3 @@ class NodeHandler:
             # Clear session
             if user_id in self.bot.active_sessions:
                 del self.bot.active_sessions[user_id]
-
-    # Authentication method callbacks
-    @self.bot.callback_query_handler(func=lambda call: call.data.startswith('install_auth_'))
-    def install_auth_callback(call):
-        user_id = call.from_user.id
-        if user_id in self.bot.active_sessions:
-            session = self.bot.active_sessions[user_id]
-            user = self.db.get_user(user_id)
-            lang = user['language'] if user else 'en'
-
-            if call.data == 'install_auth_password':
-                session['step'] = 'ssh_password'
-                self.bot.edit_message_text(
-                    get_text('enter_ssh_password', lang),
-                    call.message.chat.id,
-                    call.message.message_id
-                )
-            elif call.data == 'install_auth_key':
-                session['step'] = 'ssh_key'
-                self.bot.edit_message_text(
-                    get_text('enter_ssh_key', lang),
-                    call.message.chat.id,
-                    call.message.message_id
-                )
-
-    # Port configuration callbacks
-    @self.bot.callback_query_handler(func=lambda call: call.data.startswith('install_ports_'))
-    def install_ports_callback(call):
-        user_id = call.from_user.id
-        if user_id in self.bot.active_sessions:
-            session = self.bot.active_sessions[user_id]
-            user = self.db.get_user(user_id)
-            lang = user['language'] if user else 'en'
-
-            if call.data == 'install_ports_custom':
-                session['step'] = 'node_port'
-                self.bot.edit_message_text(
-                    get_text('enter_node_port', lang),
-                    call.message.chat.id,
-                    call.message.message_id
-                )
-            elif call.data == 'install_ports_random':
-                import random
-                session['data']['node_port'] = random.randint(60000, 65000)
-                session['data']['api_port'] = random.randint(60000, 65000)
-                session['step'] = 'node_name'
-                self.bot.edit_message_text(
-                    get_text('enter_node_name', lang),
-                    call.message.chat.id,
-                    call.message.message_id
-        )
-
-    # Bulk authentication method callbacks
-    @self.bot.callback_query_handler(func=lambda call: call.data.startswith('bulk_auth_'))
-    def bulk_auth_callback(call):
-        user_id = call.from_user.id
-        if user_id in self.bot.active_sessions:
-            session = self.bot.active_sessions[user_id]
-            user = self.db.get_user(user_id)
-            lang = user['language'] if user else 'en'
-
-            if call.data == 'bulk_auth_password':
-                session['step'] = 'bulk_auth_data'
-                session['auth_type'] = 'password'
-                self.bot.edit_message_text(
-                    get_text('enter_bulk_password', lang),
-                    call.message.chat.id,
-                    call.message.message_id
-                )
-            elif call.data == 'bulk_auth_key':
-                session['step'] = 'bulk_auth_data'
-                session['auth_type'] = 'ssh_key'
-                self.bot.edit_message_text(
-                    get_text('enter_bulk_ssh_key', lang),
-                    call.message.chat.id,
-                    call.message.message_id
-                    )
