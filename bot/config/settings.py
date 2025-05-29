@@ -65,6 +65,9 @@ DEFAULT_API_PORT = int(os.getenv('DEFAULT_API_PORT', '62051'))
 SUPPORTED_LANGUAGES = ['en', 'fa', 'ru', 'ar']
 DEFAULT_LANGUAGE = os.getenv('DEFAULT_LANGUAGE', 'en')
 
+# Installation settings
+INSTALL_ENABLED = os.getenv('INSTALL_ENABLED', 'false').lower() == 'true'
+
 # Docker compose content for Marzban node
 DOCKER_COMPOSE_CONTENT = """services:
   marzban-node:
