@@ -1,0 +1,15 @@
+
+# Telegram Bot API
+pyTelegramBotAPI>=4.27.0
+
+# SSH connection and file transfer
+paramiko>=3.5.1
+
+# HTTP requests
+requests>=2.32.3
+
+# Cryptography for secure connections
+cryptography>=45.0.3
+
+# Additional utilities
+python-dotenv>=1.0.0
