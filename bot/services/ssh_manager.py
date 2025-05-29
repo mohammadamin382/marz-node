@@ -117,10 +117,18 @@ class SSHManager:
                     return False, f"Failed at command: {command}\nOutput: {output}"
                 logger.info(f"Command executed: {command}")
             
-            # Create docker-compose.yml
+            # Navigate to Marzban-node directory and create docker-compose.yml
             success, output = self._execute_command(
                 ssh_client,
-                f'cat > ~/Marzban-node/docker-compose.yml << EOF\n{DOCKER_COMPOSE_CONTENT}\nEOF'
+                'cd ~/Marzban-node'
+            )
+            if not success:
+                return False, f"Failed to navigate to Marzban-node directory: {output}"
+            
+            # Create docker-compose.yml with correct content
+            success, output = self._execute_command(
+                ssh_client,
+                f'cd ~/Marzban-node && cat > docker-compose.yml << EOF\n{DOCKER_COMPOSE_CONTENT}\nEOF'
             )
             if not success:
                 return False, f"Failed to create docker-compose.yml: {output}"
