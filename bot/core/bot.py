@@ -1,4 +1,3 @@
-
 """
 Main bot class and initialization
 """
@@ -67,6 +66,63 @@ class MarzNodeBot:
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('admin_'))
         def admin_callback(call):
             self.admin_handler.handle_callback(call)
+        
+        # Installation callbacks
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('install_'))
+        def install_callback(call):
+            user_id = call.from_user.id
+            if hasattr(self.bot, 'active_sessions') and user_id in self.bot.active_sessions:
+                session = self.bot.active_sessions[user_id]
+                user = self.db.get_user(user_id)
+                lang = user['language'] if user else 'en'
+                
+                try:
+                    if call.data.startswith('install_auth_'):
+                        if call.data == 'install_auth_password':
+                            session['step'] = 'ssh_password'
+                            from bot.texts.bot_texts import get_text
+                            self.bot.edit_message_text(
+                                get_text('enter_ssh_password', lang),
+                                call.message.chat.id,
+                                call.message.message_id
+                            )
+                        elif call.data == 'install_auth_key':
+                            session['step'] = 'ssh_key'
+                            from bot.texts.bot_texts import get_text
+                            self.bot.edit_message_text(
+                                get_text('enter_ssh_key', lang),
+                                call.message.chat.id,
+                                call.message.message_id
+                            )
+                    
+                    elif call.data.startswith('install_ports_'):
+                        if call.data == 'install_ports_custom':
+                            session['step'] = 'node_port'
+                            from bot.texts.bot_texts import get_text
+                            self.bot.edit_message_text(
+                                get_text('enter_node_port', lang),
+                                call.message.chat.id,
+                                call.message.message_id
+                            )
+                        elif call.data == 'install_ports_random':
+                            import random
+                            session['data']['node_port'] = random.randint(60000, 65000)
+                            session['data']['api_port'] = random.randint(60000, 65000)
+                            session['step'] = 'node_name'
+                            from bot.texts.bot_texts import get_text
+                            self.bot.edit_message_text(
+                                get_text('enter_node_name', lang),
+                                call.message.chat.id,
+                                call.message.message_id
+                            )
+                except Exception as e:
+                    logger.error(f"Error in install callback: {e}")
+                    from bot.texts.bot_texts import get_text
+                    self.bot.answer_callback_query(
+                        call.id,
+                        get_text('error_occurred', lang, error=str(e)),
+                        show_alert=True
+                    )
         
         # Language selection callback
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('lang_'))
