@@ -3,6 +3,7 @@ Bot configuration settings
 """
 
 import os
+import logging
 from typing import List
 from pathlib import Path
 
@@ -19,6 +20,16 @@ def load_env_file():
 
 # Load .env file
 load_env_file()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('bot.log'),
+        logging.StreamHandler()
+    ]
+)
 
 # Bot token - get from environment
 BOT_TOKEN = os.getenv('BOT_TOKEN', '')
