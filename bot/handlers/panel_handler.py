@@ -1,4 +1,3 @@
-
 """
 Panel management handler
 """
@@ -80,12 +79,16 @@ class PanelHandler:
     def _handle_panel_input(self, message, session):
         """Handle panel setup input"""
         user = self.db.get_user(message.from_user.id)
-        lang = user['language'] if user else 'en'
+        lang = user['language'] if user else 'fa'
         user_id = message.from_user.id
         
         try:
+            logger.info(f"Processing panel input for step: {session['step']}")
+            
             if session['step'] == 'url':
                 url = message.text.strip()
+                logger.info(f"Processing URL: {url}")
+                
                 if not self._validate_url(url):
                     self.bot.send_message(
                         message.chat.id,
@@ -95,36 +98,58 @@ class PanelHandler:
                 
                 session['data']['url'] = url
                 session['step'] = 'username'
+                
                 self.bot.send_message(
                     message.chat.id,
                     get_text('enter_username', lang)
                 )
+                logger.info("URL saved, asking for username")
             
             elif session['step'] == 'username':
-                session['data']['username'] = message.text.strip()
+                username = message.text.strip()
+                logger.info(f"Processing username: {username}")
+                
+                session['data']['username'] = username
                 session['step'] = 'password'
+                
                 self.bot.send_message(
                     message.chat.id,
                     get_text('enter_password', lang)
                 )
+                logger.info("Username saved, asking for password")
             
             elif session['step'] == 'password':
-                session['data']['password'] = message.text.strip()
+                password = message.text.strip()
+                logger.info("Processing password")
+                
+                session['data']['password'] = password
                 session['step'] = 'name'
+                
                 self.bot.send_message(
                     message.chat.id,
                     get_text('enter_panel_name', lang)
                 )
+                logger.info("Password saved, asking for panel name")
             
             elif session['step'] == 'name':
-                session['data']['name'] = message.text.strip()
+                name = message.text.strip()
+                logger.info(f"Processing panel name: {name}")
+                
+                session['data']['name'] = name
+                
+                # Show loading message
+                loading_msg = self.bot.send_message(
+                    message.chat.id,
+                    "🔄 در حال تست اتصال..."
+                )
                 
                 # Test connection and save panel
-                self._test_and_save_panel(message, session, lang, user_id)
+                self._test_and_save_panel(message, session, lang, user_id, loading_msg)
                 
                 # Clear session
-                if user_id in self.bot.active_sessions:
+                if hasattr(self.bot, 'active_sessions') and user_id in self.bot.active_sessions:
                     del self.bot.active_sessions[user_id]
+                    logger.info("Session cleared")
         
         except Exception as e:
             logger.error(f"Error handling panel input: {e}")
@@ -134,7 +159,7 @@ class PanelHandler:
             )
             
             # Clear session
-            if user_id in self.bot.active_sessions:
+            if hasattr(self.bot, 'active_sessions') and user_id in self.bot.active_sessions:
                 del self.bot.active_sessions[user_id]
     
     def _validate_url(self, url):
@@ -149,10 +174,18 @@ class PanelHandler:
         
         return url_pattern.match(url) is not None
     
-    def _test_and_save_panel(self, message, session, lang, user_id):
+    def _test_and_save_panel(self, message, session, lang, user_id, loading_msg=None):
         """Test panel connection and save if successful"""
         try:
             data = session['data']
+            logger.info(f"Testing panel connection for: {data['url']}")
+            
+            # Delete loading message
+            if loading_msg:
+                try:
+                    self.bot.delete_message(message.chat.id, loading_msg.message_id)
+                except:
+                    pass
             
             # Test connection
             success, token_data = self.marzban_api.authenticate(
@@ -161,7 +194,9 @@ class PanelHandler:
                 data['password']
             )
             
-            if success:
+            logger.info(f"Authentication result: success={success}, token_data={token_data}")
+            
+            if success and token_data:
                 # Save panel
                 panel_id = self.db.add_panel(
                     name=data['name'],
@@ -172,6 +207,8 @@ class PanelHandler:
                     added_by=user_id
                 )
                 
+                logger.info(f"Panel saved with ID: {panel_id}")
+                
                 if panel_id and token_data:
                     # Save token
                     self.db.update_panel_token(
@@ -179,6 +216,7 @@ class PanelHandler:
                         token_data.get('access_token'),
                         token_data.get('expires_at')
                     )
+                    logger.info("Token saved")
                 
                 # Send success message with main menu
                 keyboard = InlineKeyboardMarkup()
@@ -193,15 +231,45 @@ class PanelHandler:
                     reply_markup=keyboard
                 )
             else:
-                # Send error message
+                # Send detailed error message
+                error_msg = "اتصال به پنل ناموفق بود."
+                if isinstance(token_data, dict) and 'detail' in token_data:
+                    error_msg += f"\nجزئیات: {token_data['detail']}"
+                elif token_data:
+                    error_msg += f"\nخطا: {str(token_data)}"
+                
+                # Add back to main menu button
+                keyboard = InlineKeyboardMarkup()
+                keyboard.row(InlineKeyboardButton(
+                    get_text('main_menu', lang),
+                    callback_data='panel_back_main'
+                ))
+                
                 self.bot.send_message(
                     message.chat.id,
-                    get_text('panel_connection_failed', lang)
+                    error_msg,
+                    reply_markup=keyboard
                 )
         
         except Exception as e:
             logger.error(f"Error testing panel connection: {e}")
+            
+            # Delete loading message
+            if loading_msg:
+                try:
+                    self.bot.delete_message(message.chat.id, loading_msg.message_id)
+                except:
+                    pass
+            
+            # Add back to main menu button
+            keyboard = InlineKeyboardMarkup()
+            keyboard.row(InlineKeyboardButton(
+                get_text('main_menu', lang),
+                callback_data='panel_back_main'
+            ))
+            
             self.bot.send_message(
                 message.chat.id,
-                get_text('error_occurred', lang, error=str(e))
+                f"خطا در تست اتصال: {str(e)}",
+                reply_markup=keyboard
             )
