@@ -96,7 +96,13 @@ TEXTS = {
         'ssh_test_failed': "❌ SSH connection failed: {error}",
 
         # Bulk installation
-        'enter_server_list': "📋 Send server list in this format (one per line):\nIP USERNAME PASSWORD\n\nExample:\n192.168.1.1 root mypassword\n192.168.1.2 admin secret123",
+        'bulk_auth_choice': "🔐 How do you want to authenticate with the servers?",
+        'bulk_password_auth': "🔒 Each has password",
+        'bulk_ssh_key_auth': "🔑 All use SSH key",
+        'bulk_enter_servers_with_password': "📋 Send server list in this format (one per line):\nIP USERNAME PASSWORD\nIP USERNAME PASSWORD\n\nExample:\n192.168.1.1 root mypassword123\n192.168.1.2 admin myotherpass",
+        'bulk_enter_servers_for_ssh': "📋 Send server list in this format (one per line):\nIP USERNAME\nIP USERNAME\n\nExample:\n192.168.1.1 root\n192.168.1.2 admin",
+        'bulk_enter_ssh_key': "🔑 Now send the SSH private key that will be used for all servers:",
+        'enter_server_list': "📋 Send server list in this format (one per line):\nIP USERNAME PASSWORD_OR_SSH_KEY\n\nExamples:\n192.168.1.1 root mypassword\n192.168.1.2 admin -----BEGIN OPENSSH PRIVATE KEY-----\nMIIEpAIB...\n-----END OPENSSH PRIVATE KEY-----",
         'bulk_auth_method': "🔐 How to authenticate with servers?",
         'enter_bulk_password': "🔒 Enter common password for all servers:",
         'enter_bulk_ssh_key': "🔑 Send SSH private key for all servers:",
@@ -198,7 +204,13 @@ TEXTS = {
         'ssh_test_failed': "❌ اتصال SSH ناموفق: {error}",
 
         # Bulk installation
-        'enter_server_list': "📋 لیست سرورها رو به این شکل بفرست (هر کدوم تو یه خط):\nIP USERNAME PASSWORD\n\nمثال:\n192.168.1.1 root mypassword\n192.168.1.2 admin secret123",
+        'bulk_auth_choice': "🔐 چطوری می‌خوای با سرورها احراز هویت کنی؟",
+        'bulk_password_auth': "🔒 هرکدوم رمز داره",
+        'bulk_ssh_key_auth': "🔑 همشون از SSH استفاده می‌کنن",
+        'bulk_enter_servers_with_password': "📋 لیست سرورها رو به این شکل بفرست (هر کدوم تو یه خط):\nIP USERNAME PASSWORD\nIP USERNAME PASSWORD\n\nمثال:\n192.168.1.1 root mypassword123\n192.168.1.2 admin myotherpass",
+        'bulk_enter_servers_for_ssh': "📋 لیست سرورها رو به این شکل بفرست (هر کدوم تو یه خط):\nIP USERNAME\nIP USERNAME\n\nمثال:\n192.168.1.1 root\n192.168.1.2 admin",
+        'bulk_enter_ssh_key': "🔑 حالا کلید خصوصی SSH رو بفرست که برای همه سرورها استفاده بشه:",
+        'enter_server_list': "📋 لیست سرورها رو به این شکل بفرست (هر کدوم تو یه خط):\nIP USERNAME PASSWORD_یا_SSH_KEY\n\nمثال‌ها:\n192.168.1.1 root mypassword\n192.168.1.2 admin -----BEGIN OPENSSH PRIVATE KEY-----\nMIIEpAIB...\n-----END OPENSSH PRIVATE KEY-----",
         'bulk_auth_method': "🔐 چطوری با سرورها احراز هویت کنم؟",
         'enter_bulk_password': "🔒 پسورد مشترک برای همه سرورها:",
         'enter_bulk_ssh_key': "🔑 کلید خصوصی SSH برای همه سرورها رو بفرست:",
