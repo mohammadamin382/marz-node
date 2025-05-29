@@ -68,6 +68,11 @@ class MarzNodeBot:
         def admin_callback(call):
             self.admin_handler.handle_callback(call)
         
+        # Language selection callback
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('lang_'))
+        def language_callback(call):
+            self.start_handler.handle_language_selection(call)
+        
         # Text message handler for input collection
         @self.bot.message_handler(func=lambda message: True, content_types=['text', 'document'])
         def handle_text(message):
