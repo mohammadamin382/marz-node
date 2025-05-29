@@ -89,13 +89,14 @@ DOCKER_COMPOSE_CONTENT = """services:
 INSTALL_COMMANDS = [
     # Comprehensive system preparation
     "export DEBIAN_FRONTEND=noninteractive",
-    # Kill any hanging processes and clean up
-    "pkill -f dpkg || true; pkill -f apt || true",
-    "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo 'Waiting for package managers...'; sleep 3; done",
+    # Kill any hanging processes and clean up (gracefully handle if no processes exist)
+    "pkill -f dpkg 2>/dev/null || true",
+    "pkill -f apt 2>/dev/null || true", 
+    "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo 'Waiting for package managers...'; sleep 3; done || true",
     # Remove all possible lock files
-    "rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock",
+    "rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock || true",
     # Fix any interrupted dpkg operations
-    "dpkg --configure -a",
+    "dpkg --configure -a || true",
     # Clean and update package cache
     "apt-get clean && apt-get autoclean",
     "apt-get update",
@@ -105,7 +106,7 @@ INSTALL_COMMANDS = [
     # Install Docker
     "curl -fsSL https://get.docker.com | sh",
     # Clone Marzban-node
-    "git clone https://github.com/Gozargah/Marzban-node",
+    "git clone https://github.com/Gozargah/Marzban-node || true",
     # Create directory
     "mkdir -p /var/lib/marzban-node",
 ]
