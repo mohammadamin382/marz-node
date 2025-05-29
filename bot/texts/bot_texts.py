@@ -109,6 +109,7 @@ TEXTS = {
         'invalid_server_format': "❌ Invalid format! Please send servers in correct format.",
         'installing_bulk_nodes': "🚀 Installing nodes on multiple servers... This may take a while! ⏳",
         'bulk_install_complete': "📊 Bulk installation complete!\n✅ Successful: {successful}\n❌ Failed: {failed}",
+        'session_expired': 'Session expired. Please start over.',
     },
 
     'fa': {
@@ -217,6 +218,7 @@ TEXTS = {
         'invalid_server_format': "❌ فرمت اشتباه! لطفاً سرورها رو به فرمت درست بفرست.",
         'installing_bulk_nodes': "🚀 دارم روی چندتا سرور نود نصب می‌کنم... ممکنه یکم طول بکشه! ⏳",
         'bulk_install_complete': "📊 نصب دسته‌جمعی تموم شد!\n✅ موفق: {successful}\n❌ ناموفق: {failed}",
+        'session_expired': 'جلسه منقضی شده است. لطفاً دوباره شروع کنید.',
     },
 
     'ru': {
@@ -310,6 +312,22 @@ TEXTS = {
         'testing_ssh_connection': "🔄 Testing SSH connection...",
         'ssh_test_success': "✅ Yay! SSH connection successful!",
         'ssh_test_failed': "❌ SSH connection failed: {error}",
+
+        # Bulk installation
+        'bulk_auth_choice': "🔐 Как вы хотите аутентифицироваться на серверах?",
+        'bulk_password_auth': "🔒 Каждый имеет пароль",
+        'bulk_ssh_key_auth': "🔑 Все используют SSH-ключ",
+        'bulk_enter_servers_with_password': "📋 Отправьте список серверов в следующем формате (один на строку):\nIP USERNAME PASSWORD\nIP USERNAME PASSWORD\n\nПример:\n192.168.1.1 root mypassword123\n192.168.1.2 admin myotherpass",
+        'bulk_enter_servers_for_ssh': "📋 Отправьте список серверов в следующем формате (один на строку):\nIP USERNAME\nIP USERNAME\n\nПример:\n192.168.1.1 root\n192.168.1.2 admin",
+        'bulk_enter_ssh_key': "🔑 Теперь отправьте закрытый SSH-ключ, который будет использоваться для всех серверов:",
+        'enter_server_list': "📋 Отправьте список серверов в следующем формате (один на строку):\nIP USERNAME PASSWORD_ИЛИ_SSH_KEY\n\nПримеры:\n192.168.1.1 root mypassword\n192.168.1.2 admin -----BEGIN OPENSSH PRIVATE KEY-----\nMIIEpAIB...\n-----END OPENSSH PRIVATE KEY-----",
+        'bulk_auth_method': "🔐 Как аутентифицироваться на серверах?",
+        'enter_bulk_password': "🔒 Введите общий пароль для всех серверов:",
+        'enter_bulk_ssh_key': "🔑 Отправьте закрытый SSH-ключ для всех серверов:",
+        'invalid_server_format': "❌ Неверный формат! Пожалуйста, отправьте серверы в правильном формате.",
+        'installing_bulk_nodes': "🚀 Устанавливаю узлы на нескольких серверах... Это может занять некоторое время! ⏳",
+        'bulk_install_complete': "📊 Массовая установка завершена!\n✅ Успешно: {successful}\n❌ Неудачно: {failed}",
+        'session_expired': 'Сессия истекла. Пожалуйста, начните заново.',
     },
 
     'ar': {
@@ -403,6 +421,7 @@ TEXTS = {
         'testing_ssh_connection': "🔄 Testing SSH connection...",
         'ssh_test_success': "✅ Yay! SSH connection successful!",
         'ssh_test_failed': "❌ SSH connection failed: {error}",
+        'session_expired': 'انتهت الجلسة. يرجى البدء من جديد.',
     }
 }
 
