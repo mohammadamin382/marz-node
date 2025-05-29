@@ -111,27 +111,31 @@ class SSHManager:
             logger.info(f"SSH connection established to {ssh_ip}")
             
             # Execute installation commands
-            for command in INSTALL_COMMANDS:
+            for i, command in enumerate(INSTALL_COMMANDS, 1):
+                logger.info(f"Executing step {i}/{len(INSTALL_COMMANDS)}: {command}")
                 success, output = self._execute_command(ssh_client, command)
                 if not success:
-                    return False, f"Failed at command: {command}\nOutput: {output}"
-                logger.info(f"Command executed: {command}")
+                    logger.error(f"Command failed: {command}\nOutput: {output}")
+                    return False, f"Failed at step {i}: {command}\nOutput: {output}"
+                logger.info(f"Step {i} completed successfully: {command}")
+                if output.strip():
+                    logger.info(f"Command output: {output[:500]}...")  # Log first 500 chars
             
-            # Navigate to Marzban-node directory and create docker-compose.yml
-            success, output = self._execute_command(
-                ssh_client,
-                'cd ~/Marzban-node'
-            )
-            if not success:
-                return False, f"Failed to navigate to Marzban-node directory: {output}"
+            # Create docker-compose.yml with correct content in Marzban-node directory
+            docker_compose_command = f'''cd ~/Marzban-node && cat > docker-compose.yml << 'EOF'
+{DOCKER_COMPOSE_CONTENT}
+EOF'''
             
-            # Create docker-compose.yml with correct content
-            success, output = self._execute_command(
-                ssh_client,
-                f'cd ~/Marzban-node && cat > docker-compose.yml << EOF\n{DOCKER_COMPOSE_CONTENT}\nEOF'
-            )
+            logger.info("Creating docker-compose.yml file")
+            success, output = self._execute_command(ssh_client, docker_compose_command)
             if not success:
                 return False, f"Failed to create docker-compose.yml: {output}"
+            
+            # Verify file was created
+            success, output = self._execute_command(ssh_client, 'ls -la ~/Marzban-node/docker-compose.yml')
+            if not success:
+                return False, f"docker-compose.yml file was not created properly"
+            logger.info("docker-compose.yml created successfully")
             
             # Get panel information
             panel = db.get_panel(panel_id) if db and panel_id else None
@@ -165,10 +169,20 @@ class SSHManager:
             certificate = settings_data.get('certificate', '')
             
             # Create certificate file
-            cert_command = f'cat > /var/lib/marzban-node/ssl_client_cert.pem << EOF\n{certificate}\nEOF'
+            cert_command = f'''cat > /var/lib/marzban-node/ssl_client_cert.pem << 'EOF'
+{certificate}
+EOF'''
+            
+            logger.info("Creating SSL certificate file")
             success, output = self._execute_command(ssh_client, cert_command)
             if not success:
                 return False, f"Failed to create certificate file: {output}"
+            
+            # Verify certificate file was created
+            success, output = self._execute_command(ssh_client, 'ls -la /var/lib/marzban-node/ssl_client_cert.pem')
+            if not success:
+                return False, f"Certificate file was not created properly"
+            logger.info("SSL certificate file created successfully")
             
             # Start Marzban node
             success, output = self._execute_command(
@@ -232,17 +246,63 @@ class SSHManager:
                 ssh_client.close()
     
     def _execute_command(self, ssh_client: paramiko.SSHClient, command: str, 
-                        timeout: int = 300) -> Tuple[bool, str]:
+                        timeout: int = 600) -> Tuple[bool, str]:
         """Execute command on remote server"""
         try:
+            logger.info(f"Executing command: {command}")
+            
+            # Set timeout for the channel
             stdin, stdout, stderr = ssh_client.exec_command(command, timeout=timeout)
             
-            # Wait for command to complete
+            # Set timeout for the channel operations
+            stdout.channel.settimeout(timeout)
+            stderr.channel.settimeout(timeout)
+            
+            # Read output with timeout handling
+            output_data = []
+            error_data = []
+            
+            # Use select to handle non-blocking reads
+            import select
+            
+            while True:
+                # Check if command is still running
+                if stdout.channel.exit_status_ready():
+                    break
+                
+                # Read available data
+                if stdout.channel.recv_ready():
+                    chunk = stdout.read(4096).decode('utf-8', errors='ignore')
+                    if chunk:
+                        output_data.append(chunk)
+                        logger.info(f"Command output chunk: {chunk[:200]}...")
+                
+                if stderr.channel.recv_stderr_ready():
+                    chunk = stderr.read(4096).decode('utf-8', errors='ignore')
+                    if chunk:
+                        error_data.append(chunk)
+                        logger.warning(f"Command error chunk: {chunk[:200]}...")
+                
+                # Small delay to prevent busy waiting
+                import time
+                time.sleep(0.1)
+            
+            # Get final exit status
             exit_status = stdout.channel.recv_exit_status()
             
-            # Get output
-            output = stdout.read().decode('utf-8')
-            error = stderr.read().decode('utf-8')
+            # Read any remaining data
+            remaining_output = stdout.read().decode('utf-8', errors='ignore')
+            remaining_error = stderr.read().decode('utf-8', errors='ignore')
+            
+            if remaining_output:
+                output_data.append(remaining_output)
+            if remaining_error:
+                error_data.append(remaining_error)
+            
+            output = ''.join(output_data)
+            error = ''.join(error_data)
+            
+            logger.info(f"Command completed with exit status: {exit_status}")
             
             if exit_status == 0:
                 return True, output
