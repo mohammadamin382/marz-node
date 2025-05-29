@@ -6,6 +6,7 @@ import paramiko
 import logging
 import time
 import random
+import io
 from typing import Tuple, Optional
 from bot.config.settings import (
     SSH_TIMEOUT, MAX_SSH_RETRIES, DOCKER_COMPOSE_CONTENT, 
@@ -47,13 +48,32 @@ class SSHManager:
                 try:
                     if ssh_key:
                         # Use SSH key authentication
-                        key_file = paramiko.StringIO(ssh_key)
+                        key_file = io.StringIO(ssh_key)
                         try:
-                            private_key = paramiko.RSAKey.from_private_key(key_file)
+                            # Try different key types
+                            private_key = None
+                            key_types = [
+                                paramiko.RSAKey,
+                                paramiko.Ed25519Key,
+                                paramiko.ECDSAKey,
+                                paramiko.DSSKey
+                            ]
+                            
+                            for key_type in key_types:
+                                try:
+                                    key_file.seek(0)
+                                    private_key = key_type.from_private_key(key_file)
+                                    break
+                                except Exception:
+                                    continue
+                            
+                            if not private_key:
+                                return False, "❌ کلید SSH معتبر نیست! لطفاً کلید خصوصی (private key) معتبر وارد کنید"
+                                
                         except paramiko.ssh_exception.PasswordRequiredException:
-                            return False, "SSH key requires a passphrase (not supported)"
+                            return False, "❌ کلید SSH نیاز به رمز عبور دارد (پشتیبانی نمی‌شود)"
                         except Exception as e:
-                            return False, f"Invalid SSH key format: {str(e)}"
+                            return False, f"❌ فرمت کلید SSH اشتباه است: {str(e)}"
                         
                         ssh_client.connect(
                             hostname=ssh_ip,
@@ -234,8 +254,25 @@ class SSHManager:
             ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             
             if ssh_key:
-                key_file = paramiko.StringIO(ssh_key)
-                private_key = paramiko.RSAKey.from_private_key(key_file)
+                key_file = io.StringIO(ssh_key)
+                private_key = None
+                key_types = [
+                    paramiko.RSAKey,
+                    paramiko.Ed25519Key,
+                    paramiko.ECDSAKey,
+                    paramiko.DSSKey
+                ]
+                
+                for key_type in key_types:
+                    try:
+                        key_file.seek(0)
+                        private_key = key_type.from_private_key(key_file)
+                        break
+                    except Exception:
+                        continue
+                
+                if not private_key:
+                    return False, "❌ کلید SSH معتبر نیست!"
                 ssh_client.connect(
                     hostname=ssh_ip,
                     port=ssh_port,
