@@ -122,27 +122,14 @@ class StartHandler:
             else:
                 keyboard.row(buttons[i])
         
-        text = f"{get_text('welcome', lang)}\n\n{get_text('main_menu_desc', lang)}"
+        # Send or edit message based on context
+        text = f"{get_text('welcome', lang)}\n\n{get_text('main_menu', lang)}"
         
         try:
-            # Try to edit if this is a callback
-            if hasattr(message, 'message_id'):
-                self.bot.edit_message_text(
-                    text,
-                    message.chat.id,
-                    message.message_id,
-                    reply_markup=keyboard
-                )
-            else:
-                self.bot.send_message(
-                    message.chat.id,
-                    text,
-                    reply_markup=keyboard
-                )
-        except:
-            # Fallback to sending new message
             self.bot.send_message(
                 message.chat.id,
                 text,
                 reply_markup=keyboard
             )
+        except Exception as e:
+            logger.error(f"Error sending main menu: {e}")
