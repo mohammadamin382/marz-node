@@ -28,31 +28,65 @@ class SSHManager:
         
         ssh_client = None
         try:
+            logger.info(f"Starting SSH connection to {ssh_ip}:{ssh_port}")
+            
+            # Test connection first
+            test_success, test_msg = self.test_ssh_connection(
+                ssh_ip, ssh_port, ssh_username, ssh_password, ssh_key
+            )
+            
+            if not test_success:
+                return False, f"SSH connection test failed: {test_msg}"
+            
             # Create SSH client
             ssh_client = paramiko.SSHClient()
             ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             
-            # Connect to server
-            if ssh_key:
-                # Use SSH key authentication
-                key_file = paramiko.StringIO(ssh_key)
-                private_key = paramiko.RSAKey.from_private_key(key_file)
-                ssh_client.connect(
-                    hostname=ssh_ip,
-                    port=ssh_port,
-                    username=ssh_username,
-                    pkey=private_key,
-                    timeout=SSH_TIMEOUT
-                )
-            else:
-                # Use password authentication
-                ssh_client.connect(
-                    hostname=ssh_ip,
-                    port=ssh_port,
-                    username=ssh_username,
-                    password=ssh_password,
-                    timeout=SSH_TIMEOUT
-                )
+            # Connect to server with retry logic
+            for attempt in range(MAX_SSH_RETRIES):
+                try:
+                    if ssh_key:
+                        # Use SSH key authentication
+                        key_file = paramiko.StringIO(ssh_key)
+                        try:
+                            private_key = paramiko.RSAKey.from_private_key(key_file)
+                        except paramiko.ssh_exception.PasswordRequiredException:
+                            return False, "SSH key requires a passphrase (not supported)"
+                        except Exception as e:
+                            return False, f"Invalid SSH key format: {str(e)}"
+                        
+                        ssh_client.connect(
+                            hostname=ssh_ip,
+                            port=ssh_port,
+                            username=ssh_username,
+                            pkey=private_key,
+                            timeout=SSH_TIMEOUT,
+                            look_for_keys=False,
+                            allow_agent=False
+                        )
+                    else:
+                        # Use password authentication
+                        if not ssh_password:
+                            return False, "SSH password is required"
+                        
+                        ssh_client.connect(
+                            hostname=ssh_ip,
+                            port=ssh_port,
+                            username=ssh_username,
+                            password=ssh_password,
+                            timeout=SSH_TIMEOUT,
+                            look_for_keys=False,
+                            allow_agent=False
+                        )
+                    
+                    logger.info(f"SSH connection successful on attempt {attempt + 1}")
+                    break
+                    
+                except Exception as e:
+                    logger.warning(f"SSH connection attempt {attempt + 1} failed: {e}")
+                    if attempt == MAX_SSH_RETRIES - 1:
+                        raise e
+                    time.sleep(2)
             
             logger.info(f"SSH connection established to {ssh_ip}")
             
