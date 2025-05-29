@@ -21,23 +21,23 @@ class MarzNodeBot:
         self.bot = telebot.TeleBot(BOT_TOKEN)
         self.db = DatabaseManager()
         self.active_sessions = {}
-        
+
         # Initialize handlers
         self.start_handler = StartHandler(self.bot, self.db)
         self.panel_handler = PanelHandler(self.bot, self.db)
         self.node_handler = NodeHandler(self.bot, self.db)
         self.admin_handler = AdminHandler(self.bot, self.db)
-        
+
         self._register_handlers()
-    
+
     def _register_handlers(self):
         """Register all bot handlers"""
-        
+
         # Start command
         @self.bot.message_handler(commands=['start'])
         def start_command(message):
             self.start_handler.handle_start(message)
-        
+
         # Main menu callback
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('main_'))
         def main_menu_callback(call):
@@ -51,22 +51,108 @@ class MarzNodeBot:
                 self.admin_handler.handle_backup(call)
             elif call.data == 'main_stats':
                 self.admin_handler.handle_stats(call)
-        
+
         # Panel management callbacks
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('panel_'))
         def panel_callback(call):
             self.panel_handler.handle_callback(call)
-        
+
         # Node management callbacks
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('node_'))
         def node_callback(call):
             self.node_handler.handle_callback(call)
-        
+
+        # Install authentication callbacks
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('install_auth_'))
+        def install_auth_callback(call):
+            user_id = call.from_user.id
+
+            # Make sure active_sessions exists
+            if not hasattr(self.bot, 'active_sessions'):
+                self.bot.active_sessions = {}
+
+            session = self.bot.active_sessions.get(user_id)
+
+            if session:
+                from bot.texts.bot_texts import get_text
+                user = self.db.get_user(call.from_user.id)
+                lang = user['language'] if user else 'en'
+
+                if call.data == 'install_auth_password':
+                    session['step'] = 'ssh_password'
+                    session['data']['auth_type'] = 'password'
+
+                    try:
+                        self.bot.edit_message_text(
+                            get_text('enter_ssh_password', lang),
+                            call.message.chat.id,
+                            call.message.message_id
+                        )
+                    except Exception as e:
+                        logger.error(f"Error in password auth callback: {e}")
+                        self.bot.send_message(
+                            call.message.chat.id,
+                            get_text('enter_ssh_password', lang)
+                        )
+
+                elif call.data == 'install_auth_key':
+                    session['step'] = 'ssh_key'
+                    session['data']['auth_type'] = 'ssh_key'
+
+                    try:
+                        self.bot.edit_message_text(
+                            get_text('enter_ssh_key', lang),
+                            call.message.chat.id,
+                            call.message.message_id
+                        )
+                    except Exception as e:
+                        logger.error(f"Error in key auth callback: {e}")
+                        self.bot.send_message(
+                            call.message.chat.id,
+                            get_text('enter_ssh_key', lang)
+                        )
+            else:
+                # No active session - inform user to start over
+                from bot.texts.bot_texts import get_text
+                user = self.db.get_user(call.from_user.id)
+                lang = user['language'] if user else 'en'
+                self.bot.answer_callback_query(
+                    call.id,
+                    get_text('session_expired', lang),
+                    show_alert=True
+                )
+
+        # Bulk authentication callbacks
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('bulk_auth_'))
+        def bulk_auth_callback(call):
+            user_id = call.from_user.id
+
+            # Make sure active_sessions exists
+            if not hasattr(self.bot, 'active_sessions'):
+                self.bot.active_sessions = {}
+
+            session = self.bot.active_sessions.get(user_id)
+
+            if session:
+                from bot.texts.bot_texts import get_text
+                user = self.db.get_user(call.from_user.id)
+                lang = user['language'] if user else 'en'
+
+                if call.data == 'bulk_auth_password':
+                    self.node_handler._handle_bulk_auth_choice(call, 'password', lang)
+                elif call.data == 'bulk_auth_ssh':
+                    self.node_handler._handle_bulk_auth_choice(call, 'ssh_key', lang)
+
+        # Panel management callbacks
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('panel_'))
+        def panel_callback(call):
+            self.panel_handler.handle_callback(call)
+
         # Admin callbacks
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('admin_'))
         def admin_callback(call):
             self.admin_handler.handle_callback(call)
-        
+
         # Installation callbacks
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('install_'))
         def install_callback(call):
@@ -75,27 +161,9 @@ class MarzNodeBot:
                 session = self.bot.active_sessions[user_id]
                 user = self.db.get_user(user_id)
                 lang = user['language'] if user else 'en'
-                
+
                 try:
-                    if call.data.startswith('install_auth_'):
-                        if call.data == 'install_auth_password':
-                            session['step'] = 'ssh_password'
-                            from bot.texts.bot_texts import get_text
-                            self.bot.edit_message_text(
-                                get_text('enter_ssh_password', lang),
-                                call.message.chat.id,
-                                call.message.message_id
-                            )
-                        elif call.data == 'install_auth_key':
-                            session['step'] = 'ssh_key'
-                            from bot.texts.bot_texts import get_text
-                            self.bot.edit_message_text(
-                                get_text('enter_ssh_key', lang),
-                                call.message.chat.id,
-                                call.message.message_id
-                            )
-                    
-                    elif call.data.startswith('install_ports_'):
+                    if call.data.startswith('install_ports_'):
                         if call.data == 'install_ports_custom':
                             session['step'] = 'node_port'
                             from bot.texts.bot_texts import get_text
@@ -123,21 +191,21 @@ class MarzNodeBot:
                         get_text('error_occurred', lang, error=str(e)),
                         show_alert=True
                     )
-        
+
         # Language selection callback
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('lang_'))
         def language_callback(call):
             self.start_handler.handle_language_selection(call)
-        
+
         # Text message handler for input collection
         @self.bot.message_handler(func=lambda message: True, content_types=['text', 'document'])
         def handle_text(message):
             user_id = message.from_user.id
-            
+
             # Make sure active_sessions exists
             if not hasattr(self.bot, 'active_sessions'):
                 self.bot.active_sessions = {}
-            
+
             if user_id in self.bot.active_sessions:
                 session = self.bot.active_sessions[user_id]
                 try:
@@ -147,7 +215,7 @@ class MarzNodeBot:
                     # Clear broken session
                     if user_id in self.bot.active_sessions:
                         del self.bot.active_sessions[user_id]
-                    
+
                     # Get user language and send error
                     user = self.db.get_user(user_id)
                     lang = user['language'] if user else 'fa'
@@ -156,7 +224,7 @@ class MarzNodeBot:
                         message.chat.id,
                         get_text('error_occurred', lang, error=str(e))
                     )
-    
+
     def start(self):
         """Start the bot"""
         logger.info("Starting Marzban Node Management Bot...")
