@@ -94,6 +94,15 @@ TEXTS = {
         'testing_ssh_connection': "🔄 Testing SSH connection...",
         'ssh_test_success': "✅ Yay! SSH connection successful!",
         'ssh_test_failed': "❌ SSH connection failed: {error}",
+
+        # Bulk installation
+        'enter_server_list': "📋 Send server list in this format (one per line):\nIP USERNAME PASSWORD\n\nExample:\n192.168.1.1 root mypassword\n192.168.1.2 admin secret123",
+        'bulk_auth_method': "🔐 How to authenticate with servers?",
+        'enter_bulk_password': "🔒 Enter common password for all servers:",
+        'enter_bulk_ssh_key': "🔑 Send SSH private key for all servers:",
+        'invalid_server_format': "❌ Invalid format! Please send servers in correct format.",
+        'installing_bulk_nodes': "🚀 Installing nodes on multiple servers... This may take a while! ⏳",
+        'bulk_install_complete': "📊 Bulk installation complete!\n✅ Successful: {successful}\n❌ Failed: {failed}",
     },
 
     'fa': {
@@ -187,6 +196,15 @@ TEXTS = {
         'testing_ssh_connection': "🔄 دارم اتصال SSH رو تست می‌کنم...",
         'ssh_test_success': "✅ یه‌هو! اتصال SSH موفق بود!",
         'ssh_test_failed': "❌ اتصال SSH ناموفق: {error}",
+
+        # Bulk installation
+        'enter_server_list': "📋 لیست سرورها رو به این شکل بفرست (هر کدوم تو یه خط):\nIP USERNAME PASSWORD\n\nمثال:\n192.168.1.1 root mypassword\n192.168.1.2 admin secret123",
+        'bulk_auth_method': "🔐 چطوری با سرورها احراز هویت کنم؟",
+        'enter_bulk_password': "🔒 پسورد مشترک برای همه سرورها:",
+        'enter_bulk_ssh_key': "🔑 کلید خصوصی SSH برای همه سرورها رو بفرست:",
+        'invalid_server_format': "❌ فرمت اشتباه! لطفاً سرورها رو به فرمت درست بفرست.",
+        'installing_bulk_nodes': "🚀 دارم روی چندتا سرور نود نصب می‌کنم... ممکنه یکم طول بکشه! ⏳",
+        'bulk_install_complete': "📊 نصب دسته‌جمعی تموم شد!\n✅ موفق: {successful}\n❌ ناموفق: {failed}",
     },
 
     'ru': {
