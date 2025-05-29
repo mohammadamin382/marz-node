@@ -10,6 +10,8 @@ from bot.utils.decorators import admin_only
 import logging
 import random
 import string
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
@@ -826,7 +828,7 @@ class NodeHandler:
                 del self.bot.active_sessions[user_id]
 
     def _start_bulk_node_installation(self, message, session, lang, user_id):
-        """Start bulk node installation process"""
+        """Start bulk node installation process with concurrent execution"""
         try:
             self.bot.send_message(
                 message.chat.id,
@@ -834,10 +836,10 @@ class NodeHandler:
             )
 
             servers = session['data']['servers']
-            successful = 0
-            failed = 0
-
-            for i, server in enumerate(servers, 1):
+            
+            # Start concurrent installations using ThreadPoolExecutor
+            def install_single_node(server):
+                """Install a single node - to be run in parallel"""
                 try:
                     node_name = f"node-{server['ip'].replace('.', '-')}"
 
@@ -845,17 +847,17 @@ class NodeHandler:
                     if server['auth_type'] == 'ssh_key':
                         ssh_password = None
                         ssh_key = server['ssh_key']
-                        self.bot.send_message(
-                            message.chat.id,
-                            f"🔑 {server['ip']}: استفاده از کلید SSH"
-                        )
+                        auth_msg = f"🔑 {server['ip']}: استفاده از کلید SSH"
                     else:
                         ssh_password = server['password']
                         ssh_key = None
-                        self.bot.send_message(
-                            message.chat.id,
-                            f"🔒 {server['ip']}: استفاده از پسورد"
-                        )
+                        auth_msg = f"🔒 {server['ip']}: استفاده از پسورد"
+
+                    # Send auth method info
+                    try:
+                        self.bot.send_message(message.chat.id, auth_msg)
+                    except Exception:
+                        pass  # Continue even if message sending fails
 
                     success, result = self.ssh_manager.install_node(
                         ssh_ip=server['ip'],
@@ -870,38 +872,74 @@ class NodeHandler:
                         db=self.db
                     )
 
-                    if success:
-                        successful += 1
-                        self.bot.send_message(
-                            message.chat.id,
-                            f"✅ {server['ip']}: {get_text('node_installed', lang)}"
-                        )
-                    else:
-                        failed += 1
-                        self.bot.send_message(
-                            message.chat.id,
-                            f"❌ {server['ip']}: {get_text('installation_failed', lang, error=result)}"
-                        )
+                    return {
+                        'ip': server['ip'],
+                        'success': success,
+                        'result': result
+                    }
 
                 except Exception as e:
-                    failed += 1
-                    self.bot.send_message(
-                        message.chat.id,
-                        f"❌ {server['ip']}: {get_text('installation_failed', lang, error=str(e))}"
-                    )
+                    logger.error(f"Error installing node on {server['ip']}: {e}")
+                    return {
+                        'ip': server['ip'],
+                        'success': False,
+                        'result': str(e)
+                    }
+
+            # Execute installations concurrently with max 5 threads
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                # Submit all installation tasks
+                future_to_server = {executor.submit(install_single_node, server): server for server in servers}
+                
+                successful = 0
+                failed = 0
+                
+                # Process completed installations as they finish
+                for future in as_completed(future_to_server):
+                    try:
+                        install_result = future.result()
+                        
+                        if install_result['success']:
+                            successful += 1
+                            try:
+                                self.bot.send_message(
+                                    message.chat.id,
+                                    f"✅ {install_result['ip']}: {get_text('node_installed', lang)}"
+                                )
+                            except Exception:
+                                pass
+                        else:
+                            failed += 1
+                            try:
+                                self.bot.send_message(
+                                    message.chat.id,
+                                    f"❌ {install_result['ip']}: {get_text('installation_failed', lang, error=install_result['result'])}"
+                                )
+                            except Exception:
+                                pass
+                                
+                    except Exception as e:
+                        failed += 1
+                        logger.error(f"Error processing installation result: {e}")
 
             # Send summary
-            self.bot.send_message(
-                message.chat.id,
-                get_text('bulk_install_complete', lang, successful=successful, failed=failed)
-            )
+            try:
+                self.bot.send_message(
+                    message.chat.id,
+                    get_text('bulk_install_complete', lang, successful=successful, failed=failed)
+                )
+            except Exception as e:
+                logger.error(f"Error sending summary message: {e}")
 
         except Exception as e:
             logger.error(f"Error during bulk node installation: {e}")
-            self.bot.send_message(
-                message.chat.id,
-                get_text('installation_failed', lang, error=str(e))
-            )
+            try:
+                self.bot.send_message(
+                    message.chat.id,
+                    get_text('installation_failed', lang, error=str(e))
+                )
+            except Exception:
+                pass
         finally:
             # Clear session
             if user_id in self.bot.active_sessions:
