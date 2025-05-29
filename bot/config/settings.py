@@ -57,9 +57,11 @@ MAX_SSH_RETRIES = int(os.getenv('MAX_SSH_RETRIES', '3'))
 API_TIMEOUT = int(os.getenv('API_TIMEOUT', '30'))
 MAX_API_RETRIES = int(os.getenv('MAX_API_RETRIES', '3'))
 
-# Node installation settings
-DEFAULT_NODE_PORT = int(os.getenv('DEFAULT_NODE_PORT', '62050'))
-DEFAULT_API_PORT = int(os.getenv('DEFAULT_API_PORT', '62051'))
+# Node installation settings - FIXED PORTS
+FIXED_NODE_PORT = 62050
+FIXED_API_PORT = 62051
+DEFAULT_NODE_PORT = FIXED_NODE_PORT  # Keep for backward compatibility
+DEFAULT_API_PORT = FIXED_API_PORT    # Keep for backward compatibility
 
 # Supported languages
 SUPPORTED_LANGUAGES = ['en', 'fa', 'ru', 'ar']
@@ -92,5 +94,5 @@ INSTALL_COMMANDS = [
     "apt-get update && apt-get upgrade -y && apt-get install curl socat git -y",
     "curl -fsSL https://get.docker.com | sh",
     "git clone https://github.com/Gozargah/Marzban-node",
-    "mkdir /var/lib/marzban-node",
+    "mkdir -p /var/lib/marzban-node",
 ]
