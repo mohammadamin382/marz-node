@@ -24,7 +24,7 @@ class SSHManager:
                      ssh_password: str = None, ssh_key: str = None,
                      panel_id: int = None, node_name: str = None,
                      node_port: int = None, api_port: int = None,
-                     db=None) -> Tuple[bool, str]:
+                     db=None, progress_callback=None) -> Tuple[bool, str]:
         """Install Marzban node on remote server"""
         
         ssh_client = None
@@ -110,9 +110,16 @@ class SSHManager:
             
             logger.info(f"SSH connection established to {ssh_ip}")
             
-            # Execute installation commands
+            # Execute installation commands with progress tracking
+            total_steps = len(INSTALL_COMMANDS) + 5  # Additional steps for config, certs, etc.
             for i, command in enumerate(INSTALL_COMMANDS, 1):
                 logger.info(f"Executing step {i}/{len(INSTALL_COMMANDS)}: {command}")
+                
+                # Update progress
+                if progress_callback:
+                    progress = int((i / total_steps) * 100)
+                    progress_callback(progress)
+                
                 success, output = self._execute_command(ssh_client, command)
                 if not success:
                     logger.error(f"Command failed: {command}\nOutput: {output}")
@@ -178,6 +185,22 @@ EOF'''
             if not success:
                 return False, f"Failed to create certificate file: {output}"
             
+            # Create node configuration
+            node_config = f'''cat > /var/lib/marzban-node/.env << 'EOF'
+SERVICE_PORT={node_port or DEFAULT_NODE_PORT}
+XRAY_API_PORT={api_port or DEFAULT_API_PORT}
+EOF'''
+            
+            logger.info("Creating node configuration file")
+            success, output = self._execute_command(ssh_client, node_config)
+            if not success:
+                logger.warning(f"Failed to create node config: {output}")
+            
+            # Set proper permissions
+            success, output = self._execute_command(ssh_client, 'chmod 600 /var/lib/marzban-node/ssl_client_cert.pem')
+            if not success:
+                logger.warning(f"Failed to set certificate permissions: {output}")
+            
             # Verify certificate file was created
             success, output = self._execute_command(ssh_client, 'ls -la /var/lib/marzban-node/ssl_client_cert.pem')
             if not success:
@@ -192,18 +215,42 @@ EOF'''
             if not success:
                 return False, f"Failed to start Marzban node: {output}"
             
-            # Wait a moment for the service to start
-            time.sleep(5)
+            # Wait for the service to start
+            logger.info("Waiting for Marzban node to start...")
+            time.sleep(10)
             
-            # Add node to panel
+            # Check if container is running
+            success, output = self._execute_command(
+                ssh_client,
+                'cd ~/Marzban-node && docker compose ps'
+            )
+            if success:
+                logger.info(f"Container status: {output}")
+            
+            # Check logs to ensure proper startup
+            success, logs = self._execute_command(
+                ssh_client,
+                'cd ~/Marzban-node && docker compose logs --tail=20'
+            )
+            if success:
+                logger.info(f"Container logs: {logs}")
+            else:
+                logger.warning("Could not retrieve container logs")
+            
+            # Add node to panel with FIXED ports
+            from bot.config.settings import FIXED_NODE_PORT, FIXED_API_PORT
             node_data = {
                 'add_as_new_host': True,
                 'address': ssh_ip,
-                'api_port': api_port or DEFAULT_API_PORT,
+                'api_port': FIXED_API_PORT,  # Always use fixed API port
                 'name': node_name or f"node-{ssh_ip}",
-                'port': node_port or DEFAULT_NODE_PORT,
+                'port': FIXED_NODE_PORT,     # Always use fixed node port
                 'usage_coefficient': 1
             }
+            
+            # Update progress
+            if progress_callback:
+                progress_callback(85)
             
             success, node_result = self.marzban_api.add_node(
                 panel['url'],
