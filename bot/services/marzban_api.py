@@ -1,3 +1,4 @@
+
 """
 Marzban panel API service
 """
@@ -13,6 +14,24 @@ class MarzbanAPI:
     def __init__(self):
         self.session = requests.Session()
         self.session.timeout = API_TIMEOUT
+    
+    def verify_token(self, panel_url: str, access_token: str) -> bool:
+        """Verify if token is still valid"""
+        try:
+            url = f"{panel_url.rstrip('/')}/api/admin"
+            
+            headers = {
+                'Authorization': f'Bearer {access_token}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+            
+            response = self.session.get(url, headers=headers)
+            return response.status_code == 200
+        
+        except Exception as e:
+            logger.error(f"Error verifying token: {e}")
+            return False
     
     def authenticate(self, panel_url: str, username: str, password: str) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """Authenticate with Marzban panel"""
@@ -51,7 +70,9 @@ class MarzbanAPI:
             url = f"{panel_url.rstrip('/')}/api/nodes"
             
             headers = {
-                'Authorization': f'Bearer {access_token}'
+                'Authorization': f'Bearer {access_token}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
             
             response = self.session.get(url, headers=headers)
@@ -88,7 +109,9 @@ class MarzbanAPI:
             url = f"{panel_url.rstrip('/')}/api/node/{node_id}"
             
             headers = {
-                'Authorization': f'Bearer {access_token}'
+                'Authorization': f'Bearer {access_token}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
             
             response = self.session.get(url, headers=headers)
@@ -119,7 +142,9 @@ class MarzbanAPI:
             url = f"{panel_url.rstrip('/')}/api/node/{node_id}/reconnect"
             
             headers = {
-                'Authorization': f'Bearer {access_token}'
+                'Authorization': f'Bearer {access_token}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
             
             response = self.session.post(url, headers=headers)
@@ -148,7 +173,9 @@ class MarzbanAPI:
             url = f"{panel_url.rstrip('/')}/api/node/{node_id}"
             
             headers = {
-                'Authorization': f'Bearer {access_token}'
+                'Authorization': f'Bearer {access_token}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
             
             response = self.session.delete(url, headers=headers)
@@ -174,10 +201,12 @@ class MarzbanAPI:
     def get_node_settings(self, panel_url: str, access_token: str) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """Get node settings including certificate"""
         try:
-            url = f"{panel_url.rstrip('/')}/api/node/setting"
+            url = f"{panel_url.rstrip('/')}/api/node/settings"
             
             headers = {
-                'Authorization': f'Bearer {access_token}'
+                'Authorization': f'Bearer {access_token}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
             
             response = self.session.get(url, headers=headers)
@@ -203,25 +232,33 @@ class MarzbanAPI:
             
             headers = {
                 'Authorization': f'Bearer {access_token}',
+                'Accept': 'application/json',
                 'Content-Type': 'application/json'
             }
             
             response = self.session.post(url, json=node_data, headers=headers)
             
-            if response.status_code == 200:
+            if response.status_code == 200 or response.status_code == 201:
                 result_data = response.json()
                 return True, result_data
             elif response.status_code == 401:
+                logger.error("Authentication failed - Invalid or expired token")
                 return False, "not_authenticated"
             elif response.status_code == 403:
+                logger.error("Access forbidden - User doesn't have sudo permissions")
                 return False, "not_sudo"
+            elif response.status_code == 422:
+                # Validation error
+                error_data = response.json()
+                logger.error(f"Validation error: {error_data}")
+                return False, error_data
             else:
-                logger.error(f"Add node failed with status {response.status_code}")
-                return False, None
+                logger.error(f"Add node failed with status {response.status_code}: {response.text}")
+                return False, response.text
         
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error adding node: {e}")
-            return False, None
+            return False, f"Network error: {str(e)}"
         except Exception as e:
             logger.error(f"Unexpected error adding node: {e}")
-            return False, None
+            return False, f"Unexpected error: {str(e)}"
