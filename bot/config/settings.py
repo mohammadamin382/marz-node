@@ -85,10 +85,8 @@ DOCKER_COMPOSE_CONTENT = """services:
 
 # Installation commands
 INSTALL_COMMANDS = [
-    "apt-get update",
-    "apt-get upgrade -y",
-    "apt-get install curl socat git -y",
+    "apt-get update && apt-get upgrade -y && apt-get install curl socat git -y",
     "curl -fsSL https://get.docker.com | sh",
     "git clone https://github.com/Gozargah/Marzban-node",
-    "mkdir -p /var/lib/marzban-node",
+    "mkdir /var/lib/marzban-node",
 ]
