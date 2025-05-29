@@ -85,6 +85,10 @@ DOCKER_COMPOSE_CONTENT = """services:
 
 # Installation commands
 INSTALL_COMMANDS = [
+    # Wait for any running apt processes to finish and remove locks
+    "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo 'Waiting for other package managers to finish...'; sleep 5; done",
+    "rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock",
+    # Now run the actual installation
     "apt-get update && apt-get upgrade -y && apt-get install curl socat git -y",
     "curl -fsSL https://get.docker.com | sh",
     "git clone https://github.com/Gozargah/Marzban-node",
