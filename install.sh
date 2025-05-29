@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Colors for UI
@@ -366,11 +365,7 @@ troubleshooting() {
 
 # Main script execution
 main() {
-    # Check if running as root
-    if [ "$EUID" -eq 0 ]; then
-        print_color $RED "❌ Please don't run this script as root!"
-        exit 1
-    fi
+    # No root restriction - can run as any user
     
     while true; do
         show_main_menu
