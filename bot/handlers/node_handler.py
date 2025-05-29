@@ -682,12 +682,22 @@ class NodeHandler:
 
                 for line in lines:
                     if line.strip():
-                        parts = line.strip().split()
+                        parts = line.strip().split(' ', 2)  # Split into max 3 parts
                         if len(parts) >= 3:  # ip username password/key
+                            auth_data = parts[2]
+                            
+                            # Auto-detect if it's SSH key or password
+                            is_ssh_key = (
+                                '-----BEGIN' in auth_data or
+                                auth_data.startswith('ssh-') or
+                                len(auth_data) > 200  # SSH keys are typically longer
+                            )
+                            
                             servers.append({
                                 'ip': parts[0],
                                 'username': parts[1],
-                                'password': parts[2] if len(parts) > 2 else None
+                                'auth_data': auth_data,
+                                'is_ssh_key': is_ssh_key
                             })
 
                 if not servers:
@@ -698,36 +708,10 @@ class NodeHandler:
                     return
 
                 session['data']['servers'] = servers
-                session['step'] = 'bulk_auth_method'
-
-                keyboard = InlineKeyboardMarkup()
-                keyboard.row(
-                    InlineKeyboardButton(
-                        get_text('password_auth', lang),
-                        callback_data='bulk_auth_password'
-                    ),
-                    InlineKeyboardButton(
-                        get_text('ssh_key_auth', lang),
-                        callback_data='bulk_auth_key'
-                    )
-                )
-
-                self.bot.send_message(
-                    message.chat.id,
-                    get_text('bulk_auth_method', lang),
-                    reply_markup=keyboard
-                )
-
-            elif session['step'] == 'bulk_auth_data':
-                if session.get('auth_type') == 'password':
-                    session['data']['bulk_password'] = message.text.strip()
-                elif session.get('auth_type') == 'ssh_key':
-                    session['data']['bulk_ssh_key'] = message.text.strip()
-
                 session['data']['node_port'] = 62050
                 session['data']['api_port'] = 62051
 
-                # Start bulk installation
+                # Start bulk installation directly
                 self._start_bulk_node_installation(message, session, lang, user_id)
 
         except Exception as e:
@@ -756,12 +740,28 @@ class NodeHandler:
                 try:
                     node_name = f"node-{server['ip'].replace('.', '-')}"
 
+                    # Use auto-detected authentication method
+                    if server['is_ssh_key']:
+                        ssh_password = None
+                        ssh_key = server['auth_data']
+                        self.bot.send_message(
+                            message.chat.id,
+                            f"🔑 {server['ip']}: استفاده از کلید SSH"
+                        )
+                    else:
+                        ssh_password = server['auth_data']
+                        ssh_key = None
+                        self.bot.send_message(
+                            message.chat.id,
+                            f"🔒 {server['ip']}: استفاده از پسورد"
+                        )
+
                     success, result = self.ssh_manager.install_node(
                         ssh_ip=server['ip'],
                         ssh_port=22,
                         ssh_username=server['username'],
-                        ssh_password=session['data'].get('bulk_password') or server.get('password'),
-                        ssh_key=session['data'].get('bulk_ssh_key'),
+                        ssh_password=ssh_password,
+                        ssh_key=ssh_key,
                         panel_id=session['panel_id'],
                         node_name=node_name,
                         node_port=62050,
