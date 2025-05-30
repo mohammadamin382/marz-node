@@ -268,7 +268,7 @@ TE43qioZJLkLqpXczCQPorfYBv51UUt9ob
 
 ## 📞 کمک گرفتن
 
-- 📚 [مستندات](https://github.com/mohammadamin382/marz-node/README_fa.md)
+- 📚 [مستندات](https://github.com/mohammadamin382/marz-node/README.md)
 - 💬 [ارتباط با من](https://t.me/White78l)
 - 🐛 [ردیاب مشکلات](https://github.com/mohammadamin382/marz-node/issues)
 
