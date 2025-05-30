@@ -93,7 +93,7 @@
 **نصب خودکار(فعلا در حال توسعه کار نمیکند)**
 
    ```bash
-   git clone https://github.com/yourusername/marz-node.git && cd marz-node && chmod +x install.sh && ./install.sh
+   git clone https://github.com/mohammadamin382/marz-node.git && cd marz-node && chmod +x install.sh && ./install.sh
    ```
 
 (توجه این قابلیت فعلا کار نمی‌کند و در حال توسعه است)
@@ -103,7 +103,7 @@
 1-**کلون کردن پروژه**
 
 ```bash
-git clone https://github.com/yourusername/marz-node.git && cd marz-node
+git clone https://github.com/mohammadamin382/marz-node.git && cd marz-node
 ```
 
 2-**تغییر فایل .env**
