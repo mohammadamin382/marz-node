@@ -149,7 +149,7 @@ class MarzNodeBot:
             self.panel_handler.handle_callback(call)
 
         # Admin callbacks
-        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('admin_'))
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('admin_') or call.data.startswith('backup_') or call.data.startswith('conflict_'))
         def admin_callback(call):
             self.admin_handler.handle_callback(call)
 
@@ -197,8 +197,39 @@ class MarzNodeBot:
         def language_callback(call):
             self.start_handler.handle_language_selection(call)
 
-        # Text message handler for input collection
-        @self.bot.message_handler(func=lambda message: True, content_types=['text', 'document'])
+        # Back to main menu callback
+        @self.bot.callback_query_handler(func=lambda call: call.data == 'back_to_main')
+        def back_to_main_callback(call):
+            try:
+                user = self.db.get_user(call.from_user.id)
+                lang = user['language'] if user else 'en'
+                
+                # Delete current message and show main menu
+                try:
+                    self.bot.delete_message(call.message.chat.id, call.message.message_id)
+                except:
+                    pass
+                
+                # Create mock message for show_main_menu
+                mock_message = type('MockMessage', (), {
+                    'chat': type('MockChat', (), {'id': call.message.chat.id})()
+                })()
+                
+                self.start_handler.show_main_menu(mock_message, lang)
+                
+            except Exception as e:
+                logger.error(f"Error in back_to_main callback: {e}")
+                from bot.texts.bot_texts import get_text
+                user = self.db.get_user(call.from_user.id)
+                lang = user['language'] if user else 'en'
+                self.bot.answer_callback_query(
+                    call.id,
+                    get_text('error_occurred', lang, error=str(e)),
+                    show_alert=True
+                )
+
+        # Text message handler for input collection  
+        @self.bot.message_handler(func=lambda message: True, content_types=['text'])
         def handle_text(message):
             user_id = message.from_user.id
 
@@ -212,6 +243,34 @@ class MarzNodeBot:
                     session['handler'](message, session)
                 except Exception as e:
                     logger.error(f"Error in session handler: {e}")
+                    # Clear broken session
+                    if user_id in self.bot.active_sessions:
+                        del self.bot.active_sessions[user_id]
+
+                    # Get user language and send error
+                    user = self.db.get_user(user_id)
+                    lang = user['language'] if user else 'fa'
+                    from bot.texts.bot_texts import get_text
+                    self.bot.send_message(
+                        message.chat.id,
+                        get_text('error_occurred', lang, error=str(e))
+                    )
+
+        # Document handler for backup files
+        @self.bot.message_handler(content_types=['document'])
+        def handle_document(message):
+            user_id = message.from_user.id
+
+            # Make sure active_sessions exists
+            if not hasattr(self.bot, 'active_sessions'):
+                self.bot.active_sessions = {}
+
+            if user_id in self.bot.active_sessions:
+                session = self.bot.active_sessions[user_id]
+                try:
+                    session['handler'](message, session)
+                except Exception as e:
+                    logger.error(f"Error in document session handler: {e}")
                     # Clear broken session
                     if user_id in self.bot.active_sessions:
                         del self.bot.active_sessions[user_id]
