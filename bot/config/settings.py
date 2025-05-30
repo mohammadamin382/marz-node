@@ -47,28 +47,28 @@ if admin_ids_str:
         print("Warning: Invalid ADMIN_IDS format in environment variables")
 
 # Database settings
-DATABASE_PATH = os.getenv('DATABASE_PATH', 'bot_database.db')
+DATABASE_PATH = os.getenv('DATABASE_PATH') or 'bot_database.db'
 
-# SSH connection settings
-SSH_TIMEOUT = int(os.getenv('SSH_TIMEOUT', '30'))
-MAX_SSH_RETRIES = int(os.getenv('MAX_SSH_RETRIES', '3'))
+# SSH connection settings  
+SSH_TIMEOUT = int(os.getenv('SSH_TIMEOUT') or '30')
+MAX_SSH_RETRIES = int(os.getenv('MAX_SSH_RETRIES') or '3')
 
 # API settings
-API_TIMEOUT = int(os.getenv('API_TIMEOUT', '30'))
-MAX_API_RETRIES = int(os.getenv('MAX_API_RETRIES', '3'))
+API_TIMEOUT = int(os.getenv('API_TIMEOUT') or '30')
+MAX_API_RETRIES = int(os.getenv('MAX_API_RETRIES') or '3')
 
 # Node installation settings - FIXED PORTS
-FIXED_NODE_PORT = 62050
-FIXED_API_PORT = 62051
+FIXED_NODE_PORT = int(os.getenv('DEFAULT_NODE_PORT') or '62050')
+FIXED_API_PORT = int(os.getenv('DEFAULT_API_PORT') or '62051')
 DEFAULT_NODE_PORT = FIXED_NODE_PORT  # Keep for backward compatibility
 DEFAULT_API_PORT = FIXED_API_PORT    # Keep for backward compatibility
 
 # Supported languages
 SUPPORTED_LANGUAGES = ['en', 'fa', 'ru', 'ar']
-DEFAULT_LANGUAGE = os.getenv('DEFAULT_LANGUAGE', 'en')
+DEFAULT_LANGUAGE = os.getenv('DEFAULT_LANGUAGE') or 'en'
 
 # Installation settings
-INSTALL_ENABLED = os.getenv('INSTALL_ENABLED', 'false').lower() == 'true'
+INSTALL_ENABLED = (os.getenv('INSTALL_ENABLED') or 'false').lower() == 'true'
 
 # Docker compose content for Marzban node
 DOCKER_COMPOSE_CONTENT = """services:
