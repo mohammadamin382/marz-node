@@ -408,6 +408,85 @@ class DatabaseManager:
             logger.error(f"Error creating backup: {e}")
             return None
     
+    def add_admin(self, user_id: int, permissions: Dict[str, bool]) -> bool:
+        """Add new admin with specific permissions"""
+        try:
+            with self.lock:
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                
+                # First ensure user exists
+                cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
+                if not cursor.fetchone():
+                    # Create user entry
+                    cursor.execute('''
+                        INSERT INTO users (user_id, is_admin, created_at, last_active)
+                        VALUES (?, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ''', (user_id,))
+                else:
+                    # Update existing user to admin
+                    cursor.execute('''
+                        UPDATE users SET is_admin = TRUE, last_active = CURRENT_TIMESTAMP 
+                        WHERE user_id = ?
+                    ''', (user_id,))
+                
+                # Create admin_permissions table if not exists
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS admin_permissions (
+                        user_id INTEGER PRIMARY KEY,
+                        can_manage_panels BOOLEAN DEFAULT FALSE,
+                        can_manage_nodes BOOLEAN DEFAULT FALSE,
+                        can_view_stats BOOLEAN DEFAULT FALSE,
+                        can_backup BOOLEAN DEFAULT FALSE,
+                        can_add_admins BOOLEAN DEFAULT FALSE,
+                        FOREIGN KEY (user_id) REFERENCES users (user_id)
+                    )
+                ''')
+                
+                # Insert or update permissions
+                cursor.execute('''
+                    INSERT OR REPLACE INTO admin_permissions 
+                    (user_id, can_manage_panels, can_manage_nodes, can_view_stats, can_backup, can_add_admins)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (user_id, 
+                      permissions.get('can_manage_panels', False),
+                      permissions.get('can_manage_nodes', False),
+                      permissions.get('can_view_stats', False),
+                      permissions.get('can_backup', False),
+                      permissions.get('can_add_admins', False)))
+                
+                conn.commit()
+                conn.close()
+                return True
+        except Exception as e:
+            logger.error(f"Error adding admin: {e}")
+            return False
+    
+    def get_admin_permissions(self, user_id: int) -> Dict[str, bool]:
+        """Get admin permissions for user"""
+        try:
+            with self.lock:
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                
+                cursor.execute('SELECT * FROM admin_permissions WHERE user_id = ?', (user_id,))
+                result = cursor.fetchone()
+                
+                conn.close()
+                
+                if result:
+                    return {
+                        'can_manage_panels': bool(result[1]),
+                        'can_manage_nodes': bool(result[2]),
+                        'can_view_stats': bool(result[3]),
+                        'can_backup': bool(result[4]),
+                        'can_add_admins': bool(result[5])
+                    }
+                return {}
+        except Exception as e:
+            logger.error(f"Error getting admin permissions: {e}")
+            return {}
+
     def get_stats(self) -> Dict[str, Any]:
         """Get bot statistics"""
         try:
