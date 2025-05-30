@@ -270,7 +270,7 @@ TE43qioZJLkLqpXczCQPorfYBv51UUt9ob
 
 - 📚 [مستندات](https://github.com/mohammadamin382/marz-node/README_fa.md)
 - 💬 [ارتباط با من](https://t.me/White78l)
-- 🐛 [ردیاب مشکلات](https://github.com/mohammadamin382/marzban-node-bot/issues)
+- 🐛 [ردیاب مشکلات](https://github.com/mohammadamin382/marz-node/issues)
 
 ---
 
