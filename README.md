@@ -90,13 +90,12 @@
 
 ### ⚡ نصب
 
-**نصب خودکار(فعلا در حال توسعه کار نمیکند)**
+**نصب خودکار**
 
    ```bash
-   git clone https://github.com/mohammadamin382/marz-node.git && cd marz-node && chmod +x install.sh && ./install.sh
+curl -o install.sh -L https://raw.githubusercontent.com/mohammadamin382/marz-node/main/install.sh && chmod +x install.sh && ./install.sh
    ```
 
-(توجه این قابلیت فعلا کار نمی‌کند و در حال توسعه است)
 
 **نصب دستی**
 
