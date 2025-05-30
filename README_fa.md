@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-blue.svg)](https://core.telegram.org/bots)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/yourusername/marzban-node-bot?style=social)](https://github.com/yourusername/marzban-node-bot)
+[![Stars](https://img.shields.io/github/stars/mohammadamin382/marzban-node?style=social)](https://github.com/mohammadamin382/marz-node)
 
 **🤖 دستیار دوستانه شما برای مدیریت نودهای مرزبان!**
 
