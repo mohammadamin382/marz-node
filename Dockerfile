@@ -1,59 +1,47 @@
-
-# Multi-stage build for optimal image size
-FROM python:3.11-slim as builder
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    openssh-client \
+    gcc \
+    g++ \
+    libffi-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Production stage
-FROM python:3.11-slim
+# Copy bot source code
+COPY bot/ ./bot/
+COPY main.py .
+COPY .env .env
 
-# Create non-root user for security
-RUN groupadd -r botuser && useradd -r -g botuser botuser
+# Create data directory with proper permissions
+RUN mkdir -p /app/data && chmod 755 /app/data
 
-# Set working directory
-WORKDIR /app
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
 
-# Install minimal system dependencies
-RUN apt-get update && apt-get install -y \
-    openssh-client \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+# Create a non-root user for security
+RUN useradd --create-home --shell /bin/bash app && \
+    chown -R app:app /app
 
-# Copy Python packages from builder stage
-COPY --from=builder /root/.local /home/botuser/.local
-
-# Copy application code
-COPY . .
-
-# Create data directory for database
-RUN mkdir -p /app/data && chown -R botuser:botuser /app
-
-# Switch to non-root user
-USER botuser
-
-# Add local packages to path
-ENV PATH=/home/botuser/.local/bin:$PATH
+USER app
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import sqlite3; sqlite3.connect('/app/data/bot_database.db').close()" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/health', timeout=5)" || exit 1
 
-# Expose port (optional, for monitoring)
-EXPOSE 8080
+# Expose port for health checks (optional)
+EXPOSE 8000
 
-# Start the bot
+# Run the bot
 CMD ["python", "main.py"]
