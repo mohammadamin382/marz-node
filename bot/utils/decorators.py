@@ -49,7 +49,7 @@ def error_handler(func):
             return func(*args, **kwargs)
         except Exception as e:
             logger.error(f"Error in {func.__name__}: {e}")
-            # You can add additional error handling here
+            #######################################
             raise
     
     return wrapper
