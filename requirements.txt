@@ -1,7 +1,6 @@
 pyTelegramBotAPI==4.14.0
 paramiko==3.4.0
 requests==2.31.0
-sqlite3
 cryptography==41.0.7
 urllib3==2.1.0
 packaging==23.2
