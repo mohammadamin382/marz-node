@@ -271,7 +271,7 @@ TE43qioZJLkLqpXczCQPorfYBv51UUt9ob
 - 📚 [مستندات](https://github.com/mohammadamin382/marz-node/README.md)
 - 💬 [ارتباط با من](https://t.me/White78l)
 - 🐛 [ردیاب مشکلات](https://github.com/mohammadamin382/marz-node/issues)
--📣 [کانال اطلاع رسانی](https://t.me/marz_node_bot)
+-‌ 📣 [کانال اطلاع رسانی](https://t.me/marz_node_bot)
 ---
 
 <div align="center">
