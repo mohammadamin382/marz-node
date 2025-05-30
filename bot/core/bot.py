@@ -241,20 +241,21 @@ class MarzNodeBot:
                 session = self.bot.active_sessions[user_id]
                 try:
                     session['handler'](message, session)
+                except ConnectionError as e:
+                    logger.error(f"Network error in session handler: {e}")
+                    self._handle_session_error(user_id, message.chat.id, 'network_error', str(e))
+                except PermissionError as e:
+                    logger.error(f"Permission error in session handler: {e}")
+                    self._handle_session_error(user_id, message.chat.id, 'permission_denied', str(e))
+                except FileNotFoundError as e:
+                    logger.error(f"File not found error in session handler: {e}")
+                    self._handle_session_error(user_id, message.chat.id, 'file_not_found', str(e))
+                except ValueError as e:
+                    logger.error(f"Invalid input error in session handler: {e}")
+                    self._handle_session_error(user_id, message.chat.id, 'invalid_input', str(e))
                 except Exception as e:
-                    logger.error(f"Error in session handler: {e}")
-                    # Clear broken session
-                    if user_id in self.bot.active_sessions:
-                        del self.bot.active_sessions[user_id]
-
-                    # Get user language and send error
-                    user = self.db.get_user(user_id)
-                    lang = user['language'] if user else 'fa'
-                    from bot.texts.bot_texts import get_text
-                    self.bot.send_message(
-                        message.chat.id,
-                        get_text('error_occurred', lang, error=str(e))
-                    )
+                    logger.error(f"Unexpected error in session handler: {e}")
+                    self._handle_session_error(user_id, message.chat.id, 'error_occurred', str(e))
 
         # Document handler for backup files
         @self.bot.message_handler(content_types=['document'])
@@ -269,20 +270,48 @@ class MarzNodeBot:
                 session = self.bot.active_sessions[user_id]
                 try:
                     session['handler'](message, session)
+                except ConnectionError as e:
+                    logger.error(f"Network error in document session handler: {e}")
+                    self._handle_session_error(user_id, message.chat.id, 'network_error', str(e))
+                except PermissionError as e:
+                    logger.error(f"Permission error in document session handler: {e}")
+                    self._handle_session_error(user_id, message.chat.id, 'permission_denied', str(e))
+                except FileNotFoundError as e:
+                    logger.error(f"File not found error in document session handler: {e}")
+                    self._handle_session_error(user_id, message.chat.id, 'file_not_found', str(e))
+                except ValueError as e:
+                    logger.error(f"Invalid input error in document session handler: {e}")
+                    self._handle_session_error(user_id, message.chat.id, 'invalid_input', str(e))
                 except Exception as e:
-                    logger.error(f"Error in document session handler: {e}")
-                    # Clear broken session
-                    if user_id in self.bot.active_sessions:
-                        del self.bot.active_sessions[user_id]
+                    logger.error(f"Unexpected error in document session handler: {e}")
+                    self._handle_session_error(user_id, message.chat.id, 'error_occurred', str(e))
 
-                    # Get user language and send error
-                    user = self.db.get_user(user_id)
-                    lang = user['language'] if user else 'fa'
-                    from bot.texts.bot_texts import get_text
-                    self.bot.send_message(
-                        message.chat.id,
-                        get_text('error_occurred', lang, error=str(e))
-                    )
+    def _handle_session_error(self, user_id: int, chat_id: int, error_key: str, error_message: str):
+        """Handle session errors with appropriate user feedback"""
+        # Clear broken session
+        if user_id in self.bot.active_sessions:
+            del self.bot.active_sessions[user_id]
+
+        # Get user language and send appropriate error message
+        user = self.db.get_user(user_id)
+        lang = user['language'] if user else 'fa'
+        from bot.texts.bot_texts import get_text
+        
+        try:
+            self.bot.send_message(
+                chat_id,
+                get_text(error_key, lang, error=error_message)
+            )
+        except Exception as send_error:
+            logger.error(f"Failed to send error message: {send_error}")
+            # Fallback to basic error message
+            try:
+                self.bot.send_message(
+                    chat_id,
+                    get_text('error_occurred', lang, error="خطای سیستم")
+                )
+            except:
+                pass  # Give up if we can't even send basic error
 
     def start(self):
         """Start the bot"""
