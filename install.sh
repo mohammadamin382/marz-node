@@ -36,7 +36,6 @@ print_message() {
     echo -e "${2}${1}${NC}"
 }
 
-# Function to print step with enhanced styling
 print_step() {
     echo -e "\n${BLUE}${BOLD}[STEP $1] ${2}${NC}"
     echo -e "${BLUE}────────────────────────────────────────────────────────────────────────${NC}"
