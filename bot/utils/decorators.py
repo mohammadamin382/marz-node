@@ -1,5 +1,5 @@
 """
-Utility decorators for the bot
+decorators for the bot
 """
 
 import functools
