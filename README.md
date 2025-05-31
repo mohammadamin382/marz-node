@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-blue.svg)](https://core.telegram.org/bots)
-[![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/mohammadamin382/marz-node?style=social)](https://github.com/mohammadamin382/marz-node)
 
 **🤖 دستیار شما برای مدیریت نودهای مرزبان!**
@@ -247,7 +247,7 @@ marzban-node-bot/
 
 ## 📜 مجوز
 
-این پروژه تحت مجوز GNU General Public License version 3 منتشر شده - فایل [LICENSE](LICENSE) رو برای جزئیات ببینین.
+این پروژه تحت مجوز MIT منتشر شده - فایل [LICENSE](LICENSE) رو برای جزئیات ببینین.
 
 ---
 
